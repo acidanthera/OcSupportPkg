@@ -40,7 +40,7 @@
 #include <Library/PrintLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
-
+#define screeninfooff 1 //screen's debug info display stwich
 STATIC
 CHAR16 *
 GetAppleDiskLabel (
@@ -1075,7 +1075,12 @@ OcRunSimpleBootPicker (
         Chosen->IsFolder
         ));
     }
-
+    //
+    if(screeninfooff) {
+      gST -> ConOut -> SetMode(gST->ConOut,4);
+      gST->ConOut->SetAttribute(gST->ConOut, 0x00);
+    }
+    //screen's debug info switch(temporary)
     if (!EFI_ERROR (Status)) {
       Status = OcLoadBootEntry (Chosen, BootPolicy, gImageHandle, &BooterHandle);
       if (!EFI_ERROR (Status)) {
@@ -1086,7 +1091,7 @@ OcRunSimpleBootPicker (
       } else {
         DEBUG ((DEBUG_ERROR, "LoadImage failed - %r\n", Status));
       }
-
+      
       gBS->Stall (5000000);
     }
 
