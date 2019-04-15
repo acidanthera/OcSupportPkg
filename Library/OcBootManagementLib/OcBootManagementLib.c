@@ -925,9 +925,7 @@ OcShowSimpleBootMenu (
     if (Index < Count) {
       gST->ConOut->OutputString (gST->ConOut, L"WARN: Some entries were skipped!\r\n");
     }
-
     gST->ConOut->OutputString (gST->ConOut, L"\r\nChoose boot entry: ");
-
     while (TRUE) {
       KeyIndex = WaitForKeyIndex (TimeOutSeconds);
       if (KeyIndex == OC_INPUT_TIMEOUT) {
@@ -985,6 +983,60 @@ OcLoadBootEntry (
   return Status;
 }
 
+EFI_STATUS EFIAPI
+dumyOutputString(
+    IN EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *This, 
+    IN CHAR16 *String){
+  return 0;
+}
+//Code by d1ves
+EFI_STATUS GOPSetScreenResolution (UINT32 *Width, UINT32 *Height)
+{
+    UINT32                                    i=0, Index = 0;
+    UINTN                                     DiffXY = 0, ResXY = 0;
+    UINTN                                     SizeOfInfo;
+    BOOLEAN                                   ResXYSet = FALSE;
+    EFI_STATUS                                Status;
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION      *pModeInfo;
+    EFI_GRAPHICS_OUTPUT_PROTOCOL              *gGOP = NULL;;
+    EFI_GUID                                  gEfiGraphicsOutputProtocolGuid = { 0x9042A9DE, 0x23DC, 0x4A38, { 0x96, 0xFB, 0x7A, 0xDE, 0xD0, 0x80, 0x51, 0x6A }};
+
+    EFI_GRAPHICS_OUTPUT_PROTOCOL              *Gop[20];
+    EFI_HANDLE                                *GopHandleBuffer;
+    UINTN                                     GopHandleCount,GopIndex;
+
+
+    Status = gBS->LocateHandleBuffer(ByProtocol,
+                &gEfiGraphicsOutputProtocolGuid,
+                                           NULL,
+                                &GopHandleCount,
+                               &GopHandleBuffer);
+    for(GopIndex = 0;GopIndex <1;GopIndex++) {
+      Status = gBS->HandleProtocol(GopHandleBuffer[GopIndex], &gEfiGraphicsOutputProtocolGuid, (VOID**)&Gop[GopIndex]);
+      gGOP = Gop[0];
+    }
+    if( NULL == gGOP )
+      return EFI_UNSUPPORTED;//Validate the Gop before usage in all the possible cases and also get instance of Gop through notification
+    //Find proper mode to fit image
+    for (i=0;i<gGOP->Mode->MaxMode;i++)
+    {
+        Status = gGOP->QueryMode (gGOP,i,&SizeOfInfo,&pModeInfo);
+        if ((EFI_SUCCESS == Status) && SizeOfInfo)
+        {
+            DiffXY = TSE_ABS(*Width , pModeInfo->HorizontalResolution) + TSE_ABS(*Height , pModeInfo->VerticalResolution);
+            if ((ResXY || ResXYSet) ? (DiffXY <= ResXY) : (ResXY <= DiffXY))
+            {
+                Index = i;
+                ResXY = DiffXY;
+                ResXYSet = TRUE;
+            }
+        }
+    }   
+    gGOP->SetMode (gGOP, Index);
+
+    return Status;
+}
+
 EFI_STATUS
 OcRunSimpleBootPicker (
   IN  UINT32           LookupPolicy,
@@ -992,6 +1044,7 @@ OcRunSimpleBootPicker (
   IN  UINT32           TimeoutSeconds,
   IN  OC_IMAGE_START   StartImage,
   IN  BOOLEAN          ShowPicker,
+  IN  UINT32           ShowSDB,
   IN  EFI_HANDLE       LoadHandle  OPTIONAL
   )
 {
@@ -1002,7 +1055,15 @@ OcRunSimpleBootPicker (
   UINTN                       EntryCount;
   EFI_HANDLE                  BooterHandle;
   UINT32                      DefaultEntry;
-
+  UINT32 Width4k = 4096;
+  UINT32 Hight4k = 2160;
+  UINT32 Width2k = 2560;
+  UINT32 Hight2k = 1440;
+  UINT32 Width1k = 1920;
+  UINT32 Hight1k = 1080;  
+  UINT32 Width0k = 1024;
+  UINT32 Hight0k = 768; 
+  
   Status = OcAppleBootPolicyInstallProtocol (gImageHandle, gST);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_INFO, "AppleBootPolicy install failure - %r\n", Status));
@@ -1036,7 +1097,6 @@ OcRunSimpleBootPicker (
       DEBUG ((DEBUG_ERROR, "OcScanForBootEntries failure - %r\n", Status));
       return Status;
     }
-
     DEBUG ((DEBUG_INFO, "Performing OcShowSimpleBootMenu...\n"));
 
     //
@@ -1075,10 +1135,20 @@ OcRunSimpleBootPicker (
         Chosen->IsFolder
         ));
     }
-
     if (!EFI_ERROR (Status)) {
       Status = OcLoadBootEntry (Chosen, BootPolicy, gImageHandle, &BooterHandle);
       if (!EFI_ERROR (Status)) {
+        if (ShowSDB==9696) {  //good job to vit9696
+          gST->ConOut->OutputString = dumyOutputString;
+        }
+        Status = GOPSetScreenResolution(&Width4k,&Hight4k);
+        if (EFI_ERROR (Status)) {
+          Status = GOPSetScreenResolution(&Width2k,&Hight2k);
+        } else if (EFI_ERROR (Status)) {
+          Status = GOPSetScreenResolution(&Width1k,&Hight1k);
+        } else if (EFI_ERROR (Status)) {
+          Status = GOPSetScreenResolution(&Width0k,&Hight0k);
+        }
         Status = StartImage (Chosen, BooterHandle, NULL, NULL);
         if (EFI_ERROR (Status)) {
           DEBUG ((DEBUG_ERROR, "StartImage failed - %r\n", Status));
