@@ -14,7 +14,7 @@
 
 #ifndef OC_BOOT_MANAGEMENT_LIB_H
 #define OC_BOOT_MANAGEMENT_LIB_H
-
+#define TSE_ABS(a,b)             (((a) < (b)) ? ((b) - (a)) : ((a) - (b)))
 #include <Library/OcAppleBootPolicyLib.h>
 
 /**
@@ -270,6 +270,7 @@ OcRunSimpleBootPicker (
   IN  UINT32           TimeoutSeconds,
   IN  OC_IMAGE_START   StartImage,
   IN  BOOLEAN          ShowPicker,
+  IN  UINT32           ShowSDB,
   IN  EFI_HANDLE       LoadHandle  OPTIONAL
   );
 
