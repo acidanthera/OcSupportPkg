@@ -19,6 +19,19 @@
 #include <Library/OcStringLib.h>
 #include <Library/PcdLib.h>
 
+STATIC
+CHAR16
+CharToUpper (
+  IN      CHAR16                    Char
+  )
+{
+  if (Char >= L'a' && Char <= L'z') {
+    return (CHAR16) (Char - (L'a' - L'A'));
+  }
+
+  return Char;
+}
+
 /**
   Performs a case insensitive comparison of two Null-terminated Unicode strings,
   and returns the difference between the first mismatched Unicode characters.
