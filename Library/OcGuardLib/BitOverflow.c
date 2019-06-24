@@ -18,6 +18,14 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <Library/OcGuardLib.h>
 
+#ifndef MIN_INT64
+#define MIN_INT64   ((UINT64)~0x7fffffffffffffffll)
+#endif
+
+#ifndef MIN_INT32
+#define MIN_INT32   ((UINT32)~0x7fffffff)
+#endif
+
 //
 // The implementations provided try not to be obviously slow, but primarily
 // target C99 compliance rather than performance.
