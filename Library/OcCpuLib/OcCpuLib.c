@@ -853,17 +853,13 @@ ScanAmdProcessor (
   UINT64 CoreDivisorID;
   UINT64 Divisor;
   //
-  // Faking an Intel Core i5 Processor.
-  // This value is purely cosmetic, but it makes sense to fake something
-  // that is somewhat representative of the kind of Processor that's actually
-  // in the system
+  // Faking as unknown processor. This value is purely cosmetic.
   //
-  Cpu->AppleProcessorType = AppleProcessorTypeCorei5Type5;
+  Cpu->AppleProcessorType = AppleProcessorMajorUnknown;
   //
   // get TSC Frequency calculated in OcTimerLib
   //
   Cpu->CPUFrequencyFromTSC = GetPerformanceCounterProperties (NULL, NULL);
-  Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
   //
   // Get core and thread count from CPUID
   //
@@ -874,7 +870,7 @@ ScanAmdProcessor (
 
   if (Cpu->Family == 0x0F) {
     switch (Cpu->ExtFamily) {
-      case 0x08:
+      case 0x08: //17h Family
         CofVid           = AsmReadMsr64 (K10_PSTATE_STATUS);
         CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 7);
         CoreDivisorID    = BitFieldRead64 (CofVid, 8, 13);
@@ -884,27 +880,33 @@ ScanAmdProcessor (
         //
         if (Cpu->MaxExtId >= 0x8000001E) {
           AsmCpuid (0x8000001E, NULL, &CpuidEbx, NULL, NULL);
-          Cpu->CoreCount =
-            (UINT16) DivU64x32 (
-              Cpu->ThreadCount,
-              (BitFieldRead32 (CpuidEbx, 8, 15) + 1)
-            );
+          Cpu->CoreCount = (UINT16)DivU64x32 (Cpu->ThreadCount, (BitFieldRead32(CpuidEbx, 8, 15) + 1));
         }
         break;
-      case 0x06:
+      case 0x06: // 15h_16h Family
       case 0x07:
         CofVid           = AsmReadMsr64 (K10_COFVID_STATUS);
         CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 5);
         CoreDivisorID    = CofVid & BIT6;
         Divisor          = LShiftU64 (1, CoreDivisorID);
-        Cpu->MaxBusRatio = (UINT8)(((CoreFrequencyID + 16) / Divisor) + 1);
+        Cpu->MaxBusRatio = (UINT8) ((CoreFrequencyID + 16) / (2 * Divisor));
         //
         // AMD 15h and 16h CPUs don't support hyperthreading,
         // so the core count is equal to the thread count
+        //
         Cpu->CoreCount = Cpu->ThreadCount;
         break;
       default:
         return;
+	
+	  DEBUG ((
+	  DEBUG_INFO,
+	  "OCCPU: FID %5d DID %5d Divisor %5d MaxBR %5d\n",
+	  CoreFrequencyID,
+	  CoreDivisorID,
+	  Divisor,
+	  Cpu->MaxBusRatio
+	  ));
     }
     //
     // CPUPM is not supported on AMD, meaning the current
@@ -913,8 +915,20 @@ ScanAmdProcessor (
     Cpu->CurBusRatio = Cpu->MaxBusRatio;
     Cpu->MinBusRatio = Cpu->MaxBusRatio;
 
-    Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequency, Cpu->MaxBusRatio);
-  }
+    if (Cpu->CPUFrequency == 0) {
+	    //
+	    // There may be some quirks with virtual CPUs (VMware is fine).
+	    // Formerly we checked Cpu->MinBusRatio > 0, but we have no MinBusRatio on Penryn.
+	    //
+        if (Cpu->CPUFrequencyFromTSC > 0 && Cpu->MaxBusRatio > Cpu->MinBusRatio) {
+          Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequencyFromTSC, Cpu->MaxBusRatio);
+          Cpu->CPUFrequency = MultU64x32 (Cpu->FSBFrequency, Cpu->MaxBusRatio);
+        } else {
+          Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
+          Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequencyFromTSC, Cpu->MaxBusRatio);   
+        }
+     }
+   }
 }
 
 /** Scan the processor and fill the cpu info structure with results
