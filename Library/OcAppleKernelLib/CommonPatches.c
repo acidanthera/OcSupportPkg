@@ -287,7 +287,7 @@ mMiscPwrMgmtRelPatch = {
   .Replace     = mMiscPwrMgmtRelReplace,
   .ReplaceMask = NULL,
   .Size        = sizeof (mMiscPwrMgmtRelFind),
-  .Count       = 4,
+  .Count       = 0,
   .Skip        = 0,
   .Limit       = 0
 };
@@ -308,15 +308,15 @@ mMiscPwrMgmtDbgReplace[] = {
 STATIC
 PATCHER_GENERIC_PATCH
 mMiscPwrMgmtDbgPatch = {
-  .Base        = "_xcpm_hwp_enable",
+  .Base        = NULL,
   .Find        = mMiscPwrMgmtDbgFind,
   .Mask        = NULL,
   .Replace     = mMiscPwrMgmtDbgReplace,
   .ReplaceMask = NULL,
   .Size        = sizeof (mMiscPwrMgmtDbgFind),
-  .Count       = 2,
+  .Count       = 0,
   .Skip        = 0,
-  .Limit       = 4096
+  .Limit       = 0
 };
 
 RETURN_STATUS
@@ -399,7 +399,8 @@ PatchAppleXcpmExtraMsrs (
   }
 
   if (!RETURN_ERROR (Status)) {
-    ++ Replacements;
+    DEBUG ((DEBUG_INFO, "OCAK: Patched writes to MSR_MISC_PWR_MGMT\n"));
+    ++Replacements;
   } else {
     DEBUG ((DEBUG_WARN, "OCAK: Failed to patch writes to MSR_MISC_PWR_MGMT - %r\n", Status));
   }
