@@ -368,18 +368,18 @@ PatchAppleXcpmExtraMsrs (
   //
   MiscPwrMgmt = AsmReadMsr64 (MSR_MISC_PWR_MGMT);
   if (MiscPwrMgmt & MISC_PWR_MGMT_LOCK) {
-    DEBUG ((DEBUG_INFO, "MSR_MISC_PWR_MGMT (%Lx) is locked; attempting to patch writes\n", MiscPwrMgmt));
+    DEBUG ((DEBUG_INFO, "OCAK: MSR_MISC_PWR_MGMT (%Lx) is locked; attempting to patch writes\n", MiscPwrMgmt));
     Status = PatcherApplyGenericPatch (
       Patcher,
       &mMiscPwrMgmtPatch
       );
     if (RETURN_ERROR (Status)) {
-      DEBUG ((DEBUG_WARN, "Failed to patch writes to MSR_MISC_PWR_MGMT: %r\n", Status));
+      DEBUG ((DEBUG_WARN, "OCAK: Failed to patch writes to MSR_MISC_PWR_MGMT: %r\n", Status));
     } else {
       ++ Replacements;
     }
   } else {
-    DEBUG ((DEBUG_INFO, "MSR_MISC_PWR_MGMT (%Lx) is unlocked\n", MiscPwrMgmt));
+    DEBUG ((DEBUG_INFO, "OCAK: MSR_MISC_PWR_MGMT (%Lx) is unlocked\n", MiscPwrMgmt));
   }
 
   return Replacements > 0 ? EFI_SUCCESS : EFI_NOT_FOUND;
