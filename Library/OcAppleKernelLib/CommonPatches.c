@@ -18,7 +18,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/OcAppleKernelLib.h>
-#include <ProcessorInfo.h>
 #include <Library/PrintLib.h>
 #include <Library/OcFileLib.h>
 #include <Library/UefiLib.h>
@@ -301,7 +300,6 @@ PatchAppleXcpmExtraMsrs (
   XCPM_MSR_RECORD     *Record;
   XCPM_MSR_RECORD     *Last;
   UINT32              Replacements;
-  UINT64              MiscPwrMgmt;
 
   Last = (XCPM_MSR_RECORD *) ((UINT8 *) MachoGetMachHeader64 (&Patcher->MachContext)
     + MachoGetFileSize (&Patcher->MachContext) - sizeof (XCPM_MSR_RECORD));
@@ -364,24 +362,14 @@ PatchAppleXcpmExtraMsrs (
   }
 
   //
-  // Now patch writes to MSR_MISC_PWR_MGMT if the MSR is locked
+  // Now patch writes to MSR_MISC_PWR_MGMT
   //
-  MiscPwrMgmt = AsmReadMsr64 (MSR_MISC_PWR_MGMT);
-  if (MiscPwrMgmt & MISC_PWR_MGMT_LOCK) {
-    DEBUG ((DEBUG_INFO, "OCAK: MSR_MISC_PWR_MGMT (%Lx) is locked; attempting to patch writes\n", MiscPwrMgmt));
-    Status = PatcherApplyGenericPatch (
-      Patcher,
-      &mMiscPwrMgmtPatch
-      );
-    if (RETURN_ERROR (Status)) {
-      DEBUG ((DEBUG_WARN, "OCAK: Failed to patch writes to MSR_MISC_PWR_MGMT: %r\n", Status));
-    } else {
-      ++ Replacements;
-    }
+  Status = PatcherApplyGenericPatch (Patcher, &mMiscPwrMgmtPatch);
+  if (!RETURN_ERROR (Status)) {
+    ++ Replacements;
   } else {
-    DEBUG ((DEBUG_INFO, "OCAK: MSR_MISC_PWR_MGMT (%Lx) is unlocked\n", MiscPwrMgmt));
+    DEBUG ((DEBUG_WARN, "OCAK: Failed to patch writes to MSR_MISC_PWR_MGMT: %r\n", Status));
   }
-
   return Replacements > 0 ? EFI_SUCCESS : EFI_NOT_FOUND;
 }
 
