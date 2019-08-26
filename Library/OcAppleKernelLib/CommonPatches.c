@@ -394,7 +394,7 @@ PatchAppleXcpmExtraMsrs (
   //
   Status = PatcherApplyGenericPatch (Patcher, &mMiscPwrMgmtRelPatch);
   if (RETURN_ERROR (Status)) {
-    DEBUG ((DEBUG_WARN, "OCAK: Failed to patch writes to MSR_MISC_PWR_MGMT - %r, trying dbg\n", Status));
+    DEBUG ((DEBUG_INFO, "OCAK: Failed to patch writes to MSR_MISC_PWR_MGMT - %r, trying dbg\n", Status));
     Status = PatcherApplyGenericPatch (Patcher, &mMiscPwrMgmtDbgPatch);
   }
 
