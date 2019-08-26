@@ -18,6 +18,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/OcAppleKernelLib.h>
+#include <ProcessorInfo.h>
 #include <Library/PrintLib.h>
 #include <Library/OcFileLib.h>
 #include <Library/UefiLib.h>
@@ -266,6 +267,30 @@ PatchAppleXcpmCfgLock (
   return Replacements > 0 ? EFI_SUCCESS : EFI_NOT_FOUND;
 }
 
+STATIC
+UINT8
+mMiscPwrMgmtFind[] = {
+  0xB9, 0xAA, 0x01, 0x00, 0x00, 0x0F, 0x30 // mov ecx, 0x1aa; wrmsr
+};
+
+STATIC
+UINT8
+mMiscPwrMgmtReplace[] = {
+  0xB9, 0xAA, 0x01, 0x00, 0x00, 0x66, 0x90 // mov ecx, 0x1aa; nop
+};
+
+STATIC
+PATCHER_GENERIC_PATCH
+mMiscPwrMgmtPatch = {
+  .Base        = NULL,
+  .Find        = mMiscPwrMgmtFind,
+  .Mask        = NULL,
+  .Replace     = mMiscPwrMgmtReplace,
+  .ReplaceMask = NULL,
+  .Size        = sizeof (mMiscPwrMgmtFind),
+  .Count       = 0,
+  .Skip        = 0
+};
 
 RETURN_STATUS
 PatchAppleXcpmExtraMsrs (
@@ -276,6 +301,7 @@ PatchAppleXcpmExtraMsrs (
   XCPM_MSR_RECORD     *Record;
   XCPM_MSR_RECORD     *Last;
   UINT32              Replacements;
+  UINT64              MiscPwrMgmt;
 
   Last = (XCPM_MSR_RECORD *) ((UINT8 *) MachoGetMachHeader64 (&Patcher->MachContext)
     + MachoGetFileSize (&Patcher->MachContext) - sizeof (XCPM_MSR_RECORD));
@@ -335,6 +361,25 @@ PatchAppleXcpmExtraMsrs (
     }
   } else {
     DEBUG ((DEBUG_WARN, "OCAK: Failed to locate _xcpm_SMT_scope_msrs - %r\n", Status));
+  }
+
+  //
+  // Now patch writes to MSR_MISC_PWR_MGMT if the MSR is locked
+  //
+  MiscPwrMgmt = AsmReadMsr64 (MSR_MISC_PWR_MGMT);
+  if (MiscPwrMgmt & MISC_PWR_MGMT_LOCK) {
+    DEBUG ((DEBUG_INFO, "MSR_MISC_PWR_MGMT (%Lx) is locked; attempting to patch writes\n", MiscPwrMgmt));
+    Status = PatcherApplyGenericPatch (
+      Patcher,
+      &mMiscPwrMgmtPatch
+      );
+    if (RETURN_ERROR (Status)) {
+      DEBUG ((DEBUG_WARN, "Failed to patch writes to MSR_MISC_PWR_MGMT: %r\n", Status));
+    } else {
+      ++ Replacements;
+    }
+  } else {
+    DEBUG ((DEBUG_INFO, "MSR_MISC_PWR_MGMT (%Lx) is unlocked\n", MiscPwrMgmt));
   }
 
   return Replacements > 0 ? EFI_SUCCESS : EFI_NOT_FOUND;
