@@ -29,6 +29,9 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/BaseMemoryLib.h>
 #endif
 
+#include <Library/DebugLib.h>
+#include <Library/BaseLib.h>
+#include <Library/OcGuardLib.h>
 #include <Library/OcCryptoLib.h>
 
 /**
@@ -95,7 +98,7 @@ SubMod (
 {
   INT64  B     = 0;
   UINT32 Index = 0;
-  for (Index = 0; Index < RSANUMWORDS; ++Index) {
+  for (Index = 0; Index < Key->Size; Index++) {
     B += (UINT64) A[Index] - Key->N[Index];
     A[Index] = (UINT32) B;
     B >>= 32;
@@ -114,12 +117,14 @@ GeMod (
 {
   UINT32 Index = 0;
 
-  for (Index = RSANUMWORDS; Index;) {
-    --Index;
-    if (A[Index] < Key->N[Index])
+  for (Index = Key->Size; Index;) {
+    Index--;
+    if (A[Index] < Key->N[Index]){
       return 0;
-    if (A[Index] > Key->N[Index])
+    }
+    if (A[Index] > Key->N[Index]){
       return 1;
+    }
   }
   return 1;
 }
@@ -136,14 +141,14 @@ MontMulAdd (
   UINT32          *Bb
   )
 {
-  UINT64 A,B;
+  UINT64 A, B;
   UINT32 D0, Index;
 
   A = Mula32 (Aa, Bb[0], C[0]);
   D0 = (UINT32) A * Key->N0Inv;
   B = Mula32 (D0, Key->N[0], (UINT32) A);
 
-  for (Index = 1; Index < RSANUMWORDS; ++Index) {
+  for (Index = 1; Index < Key->Size; Index++) {
     A = Mulaa32 (Aa, Bb[Index], C[Index], (UINT32) (A >> 32));
     B = Mulaa32 (D0, Key->N[Index], (UINT32) A, (UINT32) (B >> 32));
     C[Index - 1] = (UINT32) B;
@@ -171,10 +176,11 @@ MontMul (
 {
   UINT32 Index;
 
-  ZeroMem (C, CONFIG_RSA_KEY_SIZE);
+  ZeroMem (C, Key->Size);
 
-  for (Index = 0; Index < RSANUMWORDS; ++Index)
+  for (Index = 0; Index < Key->Size; Index++) {
     MontMulAdd (Key, C, A[Index], B);
+  }
 }
 
 /**
@@ -198,11 +204,22 @@ ModPow (
   INT32  Index  = 0;
   UINT32 Tmp    = 0;
 
-  UINT32 Workbuf32[RSANUMWORDS * 3];
-
-  A = Workbuf32;
-  Ar = A + RSANUMWORDS;
-  Aar = Ar + RSANUMWORDS;
+  A = AllocateZeroPool (Key->Size * sizeof (UINT32));
+  Ar = AllocateZeroPool (Key->Size * sizeof (UINT32));
+  Aar = AllocateZeroPool (Key->Size * sizeof (UINT32));
+  if (A == NULL || Ar == NULL || Aar == NULL) {
+    if (A != NULL) {
+      FreePool (A);
+    }
+    if (Ar != NULL) {
+      FreePool (Ar);
+    }
+    if (Aar != NULL) {
+      FreePool (Aar);
+      // TODO: debug_error about efi memory alocation
+    }
+    return;
+  }
 
   //
   // Re-use location
@@ -212,25 +229,40 @@ ModPow (
   //
   // Convert from big endian byte array to little endian word array
   //
-  for (Index = 0; Index < (INT32) RSANUMWORDS; ++Index) {
+  for (Index = 0; Index < (INT32) Key->Size; Index++) {
     Tmp =
-      ((UINT32)InOut[((RSANUMWORDS - 1 - Index) * 4) + 0] << 24) |
-      ((UINT32)InOut[((RSANUMWORDS - 1 - Index) * 4) + 1] << 16) |
-      ((UINT32)InOut[((RSANUMWORDS - 1 - Index) * 4) + 2] << 8) |
-      ((UINT32)InOut[((RSANUMWORDS - 1 - Index) * 4) + 3] << 0);
+      ((UINT32)InOut[((Key->Size - 1 - Index) * 4) + 0] << 24) |
+      ((UINT32)InOut[((Key->Size - 1 - Index) * 4) + 1] << 16) |
+      ((UINT32)InOut[((Key->Size - 1 - Index) * 4) + 2] << 8) |
+      ((UINT32)InOut[((Key->Size - 1 - Index) * 4) + 3] << 0);
     A[Index] = Tmp;
   }
 
+  //
+  // Ar = A * Rr / R mod M
+  //
   MontMul (Key, Ar, A, Key->Rr);
   //
   // Exponent 65537
   //
   for (Index = 0; Index < 16; Index += 2) {
+    //
+    // Aar = Ar * Ar / R mod M 
+    //
     MontMul (Key, Aar, Ar, Ar);
+    //
+    // Ar = Aar * Aar / R mod M 
+    //
     MontMul (Key, Ar, Aar, Aar);
   }
+  //
+  // Aaa = Ar * A / R mod M
+  //
   MontMul (Key, Aaa, Ar, A);
 
+  //
+  // Make sure Aaa < Mod; Aaa is at most 1x mod too large.
+  //
   if (GeMod (Key, Aaa)){
     SubMod (Key, Aaa);
   }
@@ -238,7 +270,7 @@ ModPow (
   //
   // Convert to bigendian byte array
   //
-  for (Index = (INT32) RSANUMWORDS - 1; Index >= 0; --Index) {
+  for (Index = (INT32) Key->Size - 1; Index >= 0; --Index) {
     Tmp = Aaa[Index];
 
     *InOut++ = (UINT8) (Tmp >> 24);
@@ -246,41 +278,123 @@ ModPow (
     *InOut++ = (UINT8) (Tmp >>  8);
     *InOut++ = (UINT8) (Tmp >>  0);
   }
+
+  //
+  // Free work buffers before return
+  //
+  if (A != NULL) {
+    FreePool (A);
+  }
+  if (Ar != NULL) {
+    FreePool (Ar);
+  }
+  if (Aar != NULL) {
+    FreePool (Aar);
+  }  
 }
 
 /**
- * Check PKCS#1 padding bytes
- *
- * @param sig  Signature to verify
- * @return 0 if the padding is correct.
+  This routine parses key data from RsaPublicKey Header
+
+  @ param KeyData         RSA public key data
+  @ param Length          RSA public key size
  */
 STATIC
-INT32
-CheckPadding (
-  UINT8  *Sig
+RSA_PUBLIC_KEY
+*RsaParseKeyData (
+  UINT8  *KeyData,
+  UINTN  Length
   )
 {
-  UINT8   *Ptr   = NULL;
-  INT32   Result = 0;
-  UINT32  Index  = 0;
+  RSA_PUBLIC_KEY_HEADER  KeyHeader;
+  CONST UINT8            *N;
+  CONST UINT8            *Rr;
+  UINT32                 Index           = 0;
+  UINT32                 RsaKeyStructLen = 0;
+  RSA_PUBLIC_KEY         *RsaPublicKey   = NULL;
+  UINTN                  ExpectedLength  = 0;
 
-  Ptr = Sig;
   //
-  // First 2 bytes are always 0x00 0x01
+  // Copy KeyHeader
   //
-  Result |= *Ptr++ ^ 0x00;
-  Result |= *Ptr++ ^ 0x01;
+  CopyMem (&KeyHeader, KeyData, sizeof (RSA_PUBLIC_KEY_HEADER));
+
+  /*
   //
-  // Then 0xff bytes until the tail
+  // Validate KeyHeader
   //
-  for (Index = 0; Index < PKCS_PAD_SIZE - sizeof (mSha256Tail) - 2; Index++)
-    Result |= *Ptr++ ^ 0xff;
+  if (!RsaPkValidateByteswape ((CONST RSA_PUBLIC_KEY_HEADER *) KeyData, &KeyHeader)) {
+    //
+    // Ooops. Invalid key
+    //
+    DEBUG ((DEBUG_INFO, "Invalid key.\n"));
+
+    if (RsaPublicKey != NULL) {
+      FreePool (RsaPublicKey);  
+    }
+    return NULL;
+  }
+  */
+
   //
-  // Check the tail
+  // Validate key num bits
   //
-  Result |= CompareMem (Ptr, mSha256Tail, sizeof (mSha256Tail));
-  return Result != 0;
+  if (    KeyHeader.KeyNumBits != 2048 
+       || KeyHeader.KeyNumBits != 4096
+       || KeyHeader.KeyNumBits != 8192 ) {
+    DEBUG ((DEBUG_INFO, "Unexpected key length.\n"));
+    if (RsaPublicKey != NULL) {
+      FreePool (RsaPublicKey);
+    }
+    return NULL;
+  }
+
+  //
+  // Calculate expected key length based on key num bits
+  //
+  ExpectedLength = sizeof (RSA_PUBLIC_KEY_HEADER) + 2 * KeyHeader.KeyNumBits / 8;
+
+  //
+  // Validate expected key length with passed length from function args
+  //
+  if (Length != ExpectedLength) {
+    DEBUG ((DEBUG_INFO, "Key does not match expected length\n"));
+    if (RsaPublicKey != NULL) {
+      FreePool (RsaPublicKey);
+    }
+    return NULL;    
+  }
+
+  //
+  // Extract N
+  //
+  N = KeyData + sizeof (RSA_PUBLIC_KEY_HEADER);
+  //
+  // Extract R^2
+  //
+  Rr = KeyData + sizeof (RSA_PUBLIC_KEY_HEADER) + KeyHeader.KeyNumBits / 8;
+
+  RsaKeyStructLen = sizeof (RSA_PUBLIC_KEY) + 2 * KeyHeader.KeyNumBits / 8;
+  RsaPublicKey = (RSA_PUBLIC_KEY *) (AllocateZeroPool (RsaKeyStructLen));
+  
+  if (RsaPublicKey == NULL) {
+    DEBUG ((DEBUG_INFO, "RsaPublicKey allocation failure.\n"));
+    return NULL;
+  }
+
+  RsaPublicKey->Size = KeyHeader.KeyNumBits / 32;
+  RsaPublicKey->N0Inv = KeyHeader.N0Inv;
+  RsaPublicKey->N = (UINT32 *) (RsaPublicKey + 1);
+  RsaPublicKey->Rr = RsaPublicKey->N + RsaPublicKey->Size;
+
+  for (Index = 0; Index < RsaPublicKey->Size; Index++) {
+    RsaPublicKey->N[Index] = ((UINT32 *) N)[RsaPublicKey->Size - Index - 1];
+    RsaPublicKey->Rr[Index] = ((UINT32 *) Rr)[RsaPublicKey->Size - Index - 1];
+  }
+  
+  return RsaPublicKey;
 }
+
 
 /**
   Verify a SHA256WithRSA PKCS#1 v1.5 signature against an expected
@@ -294,39 +408,104 @@ CheckPadding (
  **/
 BOOLEAN
 RsaVerify (
-  RSA_PUBLIC_KEY  *Key,
-  UINT8           *Signature,
-  UINT8           *Sha256
+  UINT8        *Key,
+  UINTN        KeyNumBytes,
+  CONST UINT8  *Signature,
+  UINTN        SigNumBytes,
+  CONST UINT8  *Hash,
+  UINTN        HashNumBytes,
+  CONST UINT8  *Padding,
+  UINTN        PaddingNumBytes
   )
 {
-  UINT8 Buf[CONFIG_RSA_KEY_SIZE];
+  BOOLEAN         IsSuccess;  
+  RSA_PUBLIC_KEY  *ParsedKey;
+  UINT8           *WorkBuffer;
+  UINTN           *CalulatedPaddingNumBytes;
+
+  IsSuccess = FALSE;
+  ParsedKey = NULL;
+  WorkBuffer = NULL;
+
+  //
+  // Check input data
+  //
+  if (Key == NULL || Signature == NULL || Hash == NULL || Padding == NULL) {
+    DEBUG ((DEBUG_INFO, "Invalid input.\n"));
+    goto Exit;
+  }
+
+  //
+  // Parse key data
+  //
+  ParsedKey = RsaParseKeyData(Key, KeyNumBytes);
+  if (ParsedKey == NULL) {
+    DEBUG ((DEBUG_INFO, "Error parsing key.\n"));
+    goto Exit;
+  }
+
+  //
+  // Check signature length
+  //
+  if (SigNumBytes != (ParsedKey->Size * sizeof (UINT32))) {
+    DEBUG ((DEBUG_INFO, "Signature length does not match key length."));
+    goto Exit;
+  }
+
+  if (OcOverflowSubUN (SigNumBytes, HashNumBytes, CalulatedPaddingNumBytes)) {
+    DEBUG ((DEBUG_INFO, "Integer overflow while calculating real padding num bytes."));
+    goto Exit;
+  }
+
+  if (PaddingNumBytes != *CalulatedPaddingNumBytes) {
+    DEBUG ((DEBUG_INFO, "Padding length does not match hash and signature lengths."));
+    goto Exit;    
+  }
+
+  WorkBuffer = (UINT8 *) AllocateZeroPool (SigNumBytes);
+  if (WorkBuffer == NULL) {
+    DEBUG ((DEBUG_INFO, "WorkBuffer allocation failure.\n"));
+    goto Exit;    
+  }
 
   //
   // Copy input to local workspace
   //
-  CopyMem (Buf, Signature, CONFIG_RSA_KEY_SIZE);
+  CopyMem (WorkBuffer, Signature, SigNumBytes);
 
   //
   // In-place exponentiation
   //
-  ModPow (Key, Buf);
+  ModPow (ParsedKey, WorkBuffer);
 
   //
-  // Check the PKCS#1 padding
+  // Check padding bytes.
   //
-  if (CheckPadding (Buf) != 0) {
-    return FALSE;
+  if (SecureCompareMem (WorkBuffer, Padding, PaddingNumBytes)) {
+    DEBUG ((DEBUG_INFO, "Padding check failed.\n"));
+    goto Exit;   
   }
 
   //
-  // Check the digest
+  // Check the hash digest
   //
-  if (CompareMem (Buf + PKCS_PAD_SIZE, Sha256, SHA256_DIGEST_SIZE) != 0) {
-    return FALSE;
+  if (SecureCompareMem (WorkBuffer + PaddingNumBytes, Hash, HashNumBytes)) {
+    DEBUG ((DEBUG_INFO, "Hash digest check failed.\n"));
+    goto Exit;
   }
 
   //
   // All checked out OK
   //
-  return TRUE;
+  IsSuccess = TRUE;
+
+Exit:
+  if (ParsedKey != NULL) {
+    FreePool (ParsedKey);
+  }
+
+  if (WorkBuffer != NULL) {
+    FreePool (WorkBuffer);
+  }
+  return IsSuccess; 
 }

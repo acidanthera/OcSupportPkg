@@ -20,12 +20,11 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define OC_CRYPTO_LIB_H
 
 //
-// Default to 2048-bit key length for RSA.
+// RSA signatures sizes
 //
-#ifndef CONFIG_RSA_KEY_BIT_SIZE
-#define CONFIG_RSA_KEY_BIT_SIZE 2048
-#define CONFIG_RSA_KEY_SIZE (CONFIG_RSA_KEY_BIT_SIZE / 8)
-#endif
+#define CONFIG_RSA2048_NUM_BYTES 256
+#define CONFIG_RSA4096_NUM_BYTES 512
+#define CONFIG_RSA8192_NUM_BYTES 1024
 
 //
 // Default to 128-bit key length for AES.
@@ -53,7 +52,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 //
 // Derived parameters.
 //
-#define RSANUMWORDS (CONFIG_RSA_KEY_SIZE / sizeof (UINT32))
 #define AES_BLOCK_SIZE 16
 
 //
@@ -70,19 +68,77 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #endif
 
 //
-// For now abort on anything but 2048, but we can support 1024 and 4096 at least.
+// Possible digest types supported by OcCryptoLib
+// for RSA verification
 //
-#if CONFIG_RSA_KEY_BIT_SIZE != 2048 || CONFIG_RSA_KEY_SIZE != 256
-#error "Only RSA-2048 is supported"
-#endif
+typedef enum RSA_DIGEST_TYPES_ {
+  RSA_DIGEST_TYPE_SHA256,
+  RSA_DIGEST_TYPE_SHA512,
+  RSA_DIGEST_TYPE_SHA384,
+} RSA_DIGEST_TYPES;
+
+typedef enum RSA_ALGORITHM_TYPES_ {
+  RSA_ALGORITHM_TYPE_NONE,
+  RSA_ALGORITHM_TYPE_SHA256_RSA2048,
+  RSA_ALGORITHM_TYPE_SHA256_RSA4096,
+  RSA_ALGORITHM_TYPE_SHA256_RSA8192,
+  RSA_ALGORITHM_TYPE_SHA512_RSA2048,
+  RSA_ALGORITHM_TYPE_SHA512_RSA4096,
+  RSA_ALGORITHM_TYPE_SHA512_RSA8192,
+  RSA_ALGORITHM_TYPE_SHA384_RSA2048,
+  RSA_ALGORITHM_TYPE_SHA384_RSA4096,
+  RSA_ALGORITHM_TYPE_SHA384_RSA8192,
+  RSA_ALGORITHM_NUM_TYPES
+} RSA_ALGORITHM_TYPES;
+
+//
+// Holds algorithm-specific data
+// The Padding is needed by RsaVerify
+//
+typedef struct RSA_ALGORITHM_DATA_ {
+  CONST UINT8  Padding;
+  UINTN        PaddingLen;
+  UINTN        HashLen;
+} RSA_ALGORITHM_DATA;
+
+#pragma pack(push, 1)
+
+/**
+  The header for a serialized RSA public key.
+   
+  Following this header is key_num_bits bits of N.
+  KeyNumBits of Rr. Both values are stored with most
+  significant bit first. Each serialized number takes up
+  KeyNumBits/8 bytes.
+
+ */
+typedef struct RSA_PUBLIC_KEY_HEADER_ {
+  UINT32  KeyNumBits;
+  UINT32  N0Inv;
+} RSA_PUBLIC_KEY_HEADER;
+
+#pragma pack(pop)
+
 
 #pragma pack(push, 1)
 
 typedef struct RSA_PUBLIC_KEY_ {
+  //
+  // Length of N[] in number of UINT32
+  //
   UINT32  Size;
+  //
+  // -1 / n[0] mod 2^32
+  //
   UINT32  N0Inv;
-  UINT32  N[RSANUMWORDS];
-  UINT32  Rr[RSANUMWORDS];
+  //
+  // Modulus as array (host-byte order)
+  //
+  UINT32  *N;
+  //
+  // R^2 as array (host-byte order)
+  //
+  UINT32  *Rr;
 } RSA_PUBLIC_KEY;
 
 #pragma pack(pop)
@@ -128,9 +184,14 @@ typedef SHA512_CONTEXT SHA384_CONTEXT;
 //
 BOOLEAN
 RsaVerify (
-  RSA_PUBLIC_KEY  *Key,
-  UINT8           *Signature,
-  UINT8           *Sha256
+  UINT8        *Key,
+  UINTN        KeyNumBytes,
+  CONST UINT8  *Signature,
+  UINTN        SigNumBytes,
+  CONST UINT8  *Hash,
+  UINTN        HashNumBytes,
+  CONST UINT8  *Padding,
+  UINTN        PaddingNumBytes
   );
 
 VOID
