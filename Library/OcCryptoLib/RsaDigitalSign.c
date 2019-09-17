@@ -624,7 +624,7 @@ SubMod (
   INT64  B     = 0;
   UINT32 Index = 0;
 
-  for (Index = 0; Index < Key->Size; Index++) {
+  for (Index = 0; Index < Key->Size; ++Index) {
     B += (UINT64) A[Index] - Key->N[Index];
     A[Index] = (UINT32) B;
     B >>= 32;
@@ -675,7 +675,7 @@ MontMulAdd (
   D0 = (UINT32) A * Key->N0Inv;
   B = Mula32 (D0, Key->N[0], (UINT32) A);
 
-  for (Index = 1; Index < Key->Size; Index++) {
+  for (Index = 1; Index < Key->Size; ++Index) {
     A = Mulaa32 (Aa, Bb[Index], C[Index], (UINT32) (A >> 32));
     B = Mulaa32 (D0, Key->N[Index], (UINT32) A, (UINT32) (B >> 32));
     C[Index - 1] = (UINT32) B;
@@ -705,7 +705,7 @@ MontMul (
 
   ZeroMem (C, Key->Size);
 
-  for (Index = 0; Index < Key->Size; Index++) {
+  for (Index = 0; Index < Key->Size; ++Index) {
     MontMulAdd (Key, C, A[Index], B);
   }
 }
@@ -757,7 +757,7 @@ ModPow (
   //
   // Convert from big endian byte array to little endian word array
   //
-  for (Index = 0; Index < (INT32) Key->Size; Index++) {
+  for (Index = 0; Index < (INT32) Key->Size; ++Index) {
     Tmp =
       ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 0] << 24) |
       ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 1] << 16) |
@@ -923,12 +923,16 @@ RSA_PUBLIC_KEY
 
 
 /**
-  Verify a SHA256WithRSA PKCS#1 v1.5 signature against an expected
-  SHA256 hash.
+  Verify a RSA PKCS1.5 signature against an expected hash.
 
-  @param Key         RSA public key
-  @param Signature   RSA signature
-  @param Sha256      SHA-256 digest of the content to verify
+  @param Key               RSA public key
+  @param KeyNumBytes       RSA public key size in bytes
+  @param Signature         RSA signature
+  @param SignatureNumBytes RSA signature size in bytes
+  @param Hash              Hash of signed data
+  @param HashNumBytes      Hash size in bytes
+  @param Padding           Padding of sign algorithm
+  @param PaddingNumBytes   Padding size in bytes
 
   @return FALSE on failure, TRUE on success.
  **/
