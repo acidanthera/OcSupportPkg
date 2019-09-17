@@ -67,6 +67,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #error "Only AES-128, AES-192, and AES-256 are supported!"
 #endif
 
+
 //
 // Possible digest types supported by OcCryptoLib
 // for RSA verification
@@ -77,6 +78,10 @@ typedef enum RSA_DIGEST_TYPES_ {
   RSA_DIGEST_TYPE_SHA384,
 } RSA_DIGEST_TYPES;
 
+//
+// Possible RSA algorithm types supported by OcCryptoLib
+// for RSA digital signature verification
+//
 typedef enum RSA_ALGORITHM_TYPES_ {
   RSA_ALGORITHM_TYPE_NONE,
   RSA_ALGORITHM_TYPE_SHA256_RSA2048,
@@ -182,6 +187,17 @@ typedef SHA512_CONTEXT SHA384_CONTEXT;
 //
 // Functions prototypes
 //
+
+//
+// Provides algorithm-specific data for a given algorithm.
+// Returns NULL if algorithm is invalid.
+//
+CONST 
+RSA_ALGORITHM_DATA 
+*RsaGetAlgorithmData (
+  RSA_ALGORITHM_TYPES  Algo
+  );
+
 BOOLEAN
 RsaVerify (
   UINT8        *Key,
@@ -209,7 +225,7 @@ AesSetCtxIv (
 
 //
 // Data size MUST be mutiple of AES_BLOCK_SIZE;
-// Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for padding scheme
+// Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for Padding scheme
 // NOTES: you need to set Iv in Context via AesInitCtxIv() or AesSetCtxIv()
 //        no Iv should ever be reused with the same key
 //
@@ -230,7 +246,7 @@ AesCbcDecryptBuffer (
 //
 // Same function for encrypting as for decrypting.
 // Iv is incremented for every block, and used after encryption as XOR-compliment for output
-// Suggesting https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for padding scheme
+// Suggesting https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for Padding scheme
 // NOTES: you need to set Iv in Context via AesInitCtxIv() or AesSetCtxIv()
 //        no Iv should ever be reused with the same key
 //
