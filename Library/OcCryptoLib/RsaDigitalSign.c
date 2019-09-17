@@ -1007,7 +1007,7 @@ RsaVerify (
   //
   // Check padding bytes.
   //
-  if (SecureCompareMem (WorkBuffer, Padding, PaddingNumBytes)) {
+  if (SecureCompareMem (WorkBuffer, Padding, PaddingNumBytes) != 0) {
     DEBUG ((DEBUG_INFO, "OCCR: Padding check failed\n"));
     goto Exit;
   }
@@ -1015,7 +1015,7 @@ RsaVerify (
   //
   // Check the hash digest
   //
-  if (SecureCompareMem (WorkBuffer + PaddingNumBytes, Hash, HashNumBytes)) {
+  if (SecureCompareMem (WorkBuffer + PaddingNumBytes, Hash, HashNumBytes) != 0) {
     DEBUG ((DEBUG_INFO, "OCCR: Hash digest check failed\n"));
     goto Exit;
   }
