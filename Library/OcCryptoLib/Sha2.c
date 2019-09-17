@@ -174,8 +174,19 @@ Sha256Transform (
   CONST UINT8     *Data
   )
 {
-  UINT32 A, B, C, D, E, F, G, H, Index1, Index2, T1, T2;
-  UINT32 M[64];
+  UINT32  A;
+  UINT32  B; 
+  UINT32  C;
+  UINT32  D;
+  UINT32  E;
+  UINT32  F;
+  UINT32  G;
+  UINT32  H;
+  UINT32  Index1;
+  UINT32  Index2;
+  UINT32  T1;
+  UINT32  T2;
+  UINT32  M[64];
 
   for (Index1 = 0, Index2 = 0; Index1 < 16; Index1++, Index2 += 4) {
     M[Index1] = ((UINT32)Data[Index2] << 24)
@@ -260,7 +271,7 @@ Sha256Final (
   UINT8           *HashDigest
   )
 {
-  UINT32 Index
+  UINT32 Index;
 
   Index = Context->DataLen;
 
