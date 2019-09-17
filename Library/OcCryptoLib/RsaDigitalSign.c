@@ -732,9 +732,9 @@ ModPow (
   UINT32  Tmp;
 
   ASSERT (
-       (Key->Size * sizeof (UINT32) != CONFIG_RSA2048_NUM_BYTES)
-    || (Key->Size * sizeof (UINT32) != CONFIG_RSA4096_NUM_BYTES)
-    || (Key->Size * sizeof (UINT32) != CONFIG_RSA8192_NUM_BYTES)
+       (Key->Size * sizeof (UINT32) == CONFIG_RSA2048_NUM_BYTES)
+    || (Key->Size * sizeof (UINT32) == CONFIG_RSA4096_NUM_BYTES)
+    || (Key->Size * sizeof (UINT32) == CONFIG_RSA8192_NUM_BYTES)
       );
 
   A = AllocateZeroPool (Key->Size * sizeof (UINT32));
