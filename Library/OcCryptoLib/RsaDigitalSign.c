@@ -27,11 +27,11 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #ifdef EFIAPI
 #include <Library/BaseMemoryLib.h>
-#endif
-
 #include <Library/DebugLib.h>
 #include <Library/BaseLib.h>
 #include <Library/OcGuardLib.h>
+#endif
+
 #include <Library/OcCryptoLib.h>
 
 //
@@ -482,7 +482,7 @@ STATIC CONST UINT8 PADDING_RSA8192_SHA384[CONFIG_RSA8192_NUM_BYTES - SHA384_DIGE
 //
 // Algorithm data array
 //
-STATIC RSA_ALGORITHM_DATA RsaAlgorithms [RSA_ALGORITHM_NUM_TYPES] = {
+STATIC RSA_ALGORITHM_DATA RsaAlgorithms [RSA_ALGORITHM_TYPE_NUM] = {
     //
     // RSA_ALGORITHM_TYPE_NONE
     //
@@ -501,7 +501,7 @@ STATIC RSA_ALGORITHM_DATA RsaAlgorithms [RSA_ALGORITHM_NUM_TYPES] = {
     },
     //
     // RSA_ALGORITHM_TYPE_SHA256_RSA4096
-    // 
+    //
     {
       .Padding = PADDING_RSA4096_SHA256,
       .PaddingLen = sizeof (PADDING_RSA4096_SHA256),
@@ -512,30 +512,6 @@ STATIC RSA_ALGORITHM_DATA RsaAlgorithms [RSA_ALGORITHM_NUM_TYPES] = {
       .Padding = PADDING_RSA8192_SHA256,
       .PaddingLen = sizeof (PADDING_RSA8192_SHA256),
       .HashLen = SHA256_DIGEST_SIZE
-    },
-    //
-    // RSA_ALGORITHM_TYPE_SHA512_RSA2048
-    //
-    {
-      .Padding = PADDING_RSA2048_SHA512,
-      .PaddingLen = sizeof (PADDING_RSA2048_SHA512),
-      .HashLen = SHA512_DIGEST_SIZE
-    },
-    //
-    // RSA_ALGORITHM_TYPE_SHA512_RSA4096
-    //
-    {
-      .Padding = PADDING_RSA4096_SHA512,
-      .PaddingLen = sizeof (PADDING_RSA4096_SHA512),
-      .HashLen = SHA512_DIGEST_SIZE
-    },
-    //
-    // RSA_ALGORITHM_TYPE_SHA512_RSA8192
-    //
-    {
-      .Padding = PADDING_RSA8192_SHA512,
-      .PaddingLen = sizeof (PADDING_RSA8192_SHA512),
-      .HashLen = SHA512_DIGEST_SIZE
     },
     //
     // RSA_ALGORITHM_TYPE_SHA384_RSA2048
@@ -561,12 +537,36 @@ STATIC RSA_ALGORITHM_DATA RsaAlgorithms [RSA_ALGORITHM_NUM_TYPES] = {
       .PaddingLen = sizeof (PADDING_RSA8192_SHA384),
       .HashLen = SHA384_DIGEST_SIZE
     },
+    //
+    // RSA_ALGORITHM_TYPE_SHA512_RSA2048
+    //
+    {
+      .Padding = PADDING_RSA2048_SHA512,
+      .PaddingLen = sizeof (PADDING_RSA2048_SHA512),
+      .HashLen = SHA512_DIGEST_SIZE
+    },
+    //
+    // RSA_ALGORITHM_TYPE_SHA512_RSA4096
+    //
+    {
+      .Padding = PADDING_RSA4096_SHA512,
+      .PaddingLen = sizeof (PADDING_RSA4096_SHA512),
+      .HashLen = SHA512_DIGEST_SIZE
+    },
+    //
+    // RSA_ALGORITHM_TYPE_SHA512_RSA8192
+    //
+    {
+      .Padding = PADDING_RSA8192_SHA512,
+      .PaddingLen = sizeof (PADDING_RSA8192_SHA512),
+      .HashLen = SHA512_DIGEST_SIZE
+    },
 };
 
-CONST 
-RSA_ALGORITHM_DATA 
+CONST
+RSA_ALGORITHM_DATA
 *RsaGetAlgorithmData (
-  RSA_ALGORITHM_TYPES  Algo
+  RSA_ALGORITHM_TYPE  Algo
   )
 {
   if ((UINTN) Algo < RSA_ALGORITHM_NUM_TYPES) {
@@ -575,6 +575,7 @@ RSA_ALGORITHM_DATA
   return NULL;
 }
 
+STATIC
 UINT64
 Mula32 (
   UINT32  A,
@@ -582,13 +583,16 @@ Mula32 (
   UINT32  C
   )
 {
-  UINT64 Ret = A;
+  UINT64 Ret;
 
+  Ret  = A;
   Ret *= B;
   Ret += C;
+
   return Ret;
 }
 
+STATIC
 UINT64
 Mulaa32 (
   UINT32  A,
@@ -597,11 +601,13 @@ Mulaa32 (
   UINT32  D
   )
 {
-  UINT64 Ret = A;
+  UINT64 Ret
 
+  Ret  = A;
   Ret *= B;
   Ret += C;
   Ret += D;
+
   return Ret;
 }
 
@@ -617,6 +623,7 @@ SubMod (
 {
   INT64  B     = 0;
   UINT32 Index = 0;
+
   for (Index = 0; Index < Key->Size; Index++) {
     B += (UINT64) A[Index] - Key->N[Index];
     A[Index] = (UINT32) B;
@@ -766,11 +773,11 @@ ModPow (
   //
   for (Index = 0; Index < 16; Index += 2) {
     //
-    // Aar = Ar * Ar / R mod M 
+    // Aar = Ar * Ar / R mod M
     //
     MontMul (Key, Aar, Ar, Ar);
     //
-    // Ar = Aar * Aar / R mod M 
+    // Ar = Aar * Aar / R mod M
     //
     MontMul (Key, Ar, Aar, Aar);
   }
@@ -809,7 +816,7 @@ ModPow (
   }
   if (Aar != NULL) {
     FreePool (Aar);
-  }  
+  }
 }
 
 /**
@@ -849,7 +856,7 @@ RSA_PUBLIC_KEY
     DEBUG ((DEBUG_INFO, "Invalid key.\n"));
 
     if (RsaPublicKey != NULL) {
-      FreePool (RsaPublicKey);  
+      FreePool (RsaPublicKey);
     }
     return NULL;
   }
@@ -858,7 +865,7 @@ RSA_PUBLIC_KEY
   //
   // Validate key num bits
   //
-  if (    KeyHeader.KeyNumBits != 2048 
+  if (    KeyHeader.KeyNumBits != 2048
        || KeyHeader.KeyNumBits != 4096
        || KeyHeader.KeyNumBits != 8192 ) {
     DEBUG ((DEBUG_INFO, "Unexpected key length.\n"));
@@ -881,7 +888,7 @@ RSA_PUBLIC_KEY
     if (RsaPublicKey != NULL) {
       FreePool (RsaPublicKey);
     }
-    return NULL;    
+    return NULL;
   }
 
   //
@@ -895,7 +902,7 @@ RSA_PUBLIC_KEY
 
   RsaKeyStructLen = sizeof (RSA_PUBLIC_KEY) + 2 * KeyHeader.KeyNumBits / 8;
   RsaPublicKey = (RSA_PUBLIC_KEY *) (AllocateZeroPool (RsaKeyStructLen));
-  
+
   if (RsaPublicKey == NULL) {
     DEBUG ((DEBUG_INFO, "RsaPublicKey allocation failure.\n"));
     return NULL;
@@ -910,7 +917,7 @@ RSA_PUBLIC_KEY
     RsaPublicKey->N[Index] = ((UINT32 *) N)[RsaPublicKey->Size - Index - 1];
     RsaPublicKey->Rr[Index] = ((UINT32 *) Rr)[RsaPublicKey->Size - Index - 1];
   }
-  
+
   return RsaPublicKey;
 }
 
@@ -937,7 +944,7 @@ RsaVerify (
   UINTN        PaddingNumBytes
   )
 {
-  BOOLEAN         IsSuccess;  
+  BOOLEAN         IsSuccess;
   RSA_PUBLIC_KEY  *ParsedKey;
   UINT8           *WorkBuffer;
   UINTN           *CalulatedPaddingNumBytes;
@@ -978,13 +985,13 @@ RsaVerify (
 
   if (PaddingNumBytes != *CalulatedPaddingNumBytes) {
     DEBUG ((DEBUG_INFO, "Padding length does not match hash and signature lengths."));
-    goto Exit;    
+    goto Exit;
   }
 
   WorkBuffer = (UINT8 *) AllocateZeroPool (SigNumBytes);
   if (WorkBuffer == NULL) {
     DEBUG ((DEBUG_INFO, "WorkBuffer allocation failure.\n"));
-    goto Exit;    
+    goto Exit;
   }
 
   //
@@ -1002,7 +1009,7 @@ RsaVerify (
   //
   if (SecureCompareMem (WorkBuffer, Padding, PaddingNumBytes)) {
     DEBUG ((DEBUG_INFO, "Padding check failed.\n"));
-    goto Exit;   
+    goto Exit;
   }
 
   //
@@ -1026,5 +1033,5 @@ Exit:
   if (WorkBuffer != NULL) {
     FreePool (WorkBuffer);
   }
-  return IsSuccess; 
+  return IsSuccess;
 }
