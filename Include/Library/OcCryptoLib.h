@@ -20,13 +20,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define OC_CRYPTO_LIB_H
 
 //
-// RSA signatures sizes
-//
-#define CONFIG_RSA2048_NUM_BYTES 256
-#define CONFIG_RSA4096_NUM_BYTES 512
-#define CONFIG_RSA8192_NUM_BYTES 1024
-
-//
 // Default to 128-bit key length for AES.
 //
 #ifndef CONFIG_AES_KEY_SIZE
@@ -53,6 +46,12 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 // Derived parameters.
 //
 #define AES_BLOCK_SIZE 16
+#define CONFIG_RSA2048_NUM_BYTES 256
+#define CONFIG_RSA4096_NUM_BYTES 512
+#define CONFIG_RSA8192_NUM_BYTES 1024
+#define CONFIG_RSA2048_NUM_BITS ( CONFIG_RSA2048_NUM_BYTES * 8 )
+#define CONFIG_RSA4096_NUM_BITS ( CONFIG_RSA4096_NUM_BYTES * 8 )
+#define CONFIG_RSA8192_NUM_BITS ( CONFIG_RSA8192_NUM_BYTES * 8 )
 
 //
 // Support all AES key sizes.
@@ -101,7 +100,7 @@ typedef enum RSA_ALGORITHM_TYPE_ {
 // The Padding is needed by RsaVerify
 //
 typedef struct RSA_ALGORITHM_DATA_ {
-  CONST UINT8  Padding;
+  CONST UINT8  *Padding;
   UINTN        PaddingLen;
   UINTN        HashLen;
 } RSA_ALGORITHM_DATA;
@@ -208,6 +207,14 @@ RsaVerify (
   UINTN        HashNumBytes,
   CONST UINT8  *Padding,
   UINTN        PaddingNumBytes
+  );
+
+BOOLEAN
+VerifySignature (
+  UINT8               *Data,
+  UINTN               DataLen,
+  UINT8               *Signature,
+  RSA_ALGORITHM_TYPE  Algorithm
   );
 
 VOID
