@@ -676,15 +676,15 @@ MontMulAdd (
   B = Mula32 (D0, Key->N[0], (UINT32) A);
 
   for (Index = 1; Index < Key->Size; ++Index) {
-    A = Mulaa32 (Aa, Bb[Index], C[Index], (UINT32) (A >> 32));
-    B = Mulaa32 (D0, Key->N[Index], (UINT32) A, (UINT32) (B >> 32));
+    A = Mulaa32 (Aa, Bb[Index], C[Index], (UINT32) (A >> 32U));
+    B = Mulaa32 (D0, Key->N[Index], (UINT32) A, (UINT32) (B >> 32U));
     C[Index - 1] = (UINT32) B;
   }
 
-  A = (A >> 32) + (B >> 32);
+  A = (A >> 32U) + (B >> 32U);
   C[Index - 1] = (UINT32) A;
 
-  if (A >> 32) {
+  if (A >> 32U) {
     SubMod (Key, C);
   }
 }
@@ -765,10 +765,10 @@ ModPow (
   //
   for (Index = 0; Index < Key->Size; ++Index) {
     Tmp =
-      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 0] << 24) |
-      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 1] << 16) |
-      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 2] << 8) |
-      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 3] << 0);
+      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 0] << 24U) |
+      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 1] << 16U) |
+      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 2] << 8U) |
+      ((UINT32) InOut[((Key->Size - 1 - Index) * 4) + 3] << 0U);
     A[Index] = Tmp;
   }
 
