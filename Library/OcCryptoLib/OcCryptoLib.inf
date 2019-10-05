@@ -30,7 +30,7 @@
 
 [Sources]
   Aes.c
-  Rsa2048Sha256.c
+  RsaDigitalSign.c
   Md5.c
   Sha1.c
   Sha2.c

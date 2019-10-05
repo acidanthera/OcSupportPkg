@@ -25,13 +25,13 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   for computation.
 **/
 
-#ifdef EFIAPI
+#include <Base.h>
+
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/BaseLib.h>
 #include <Library/OcGuardLib.h>
-#endif
-
+#include <Library/MemoryAllocationLib.h>
 #include <Library/OcCryptoLib.h>
 
 //
@@ -569,7 +569,7 @@ RsaGetAlgorithmData (
   RSA_ALGORITHM_TYPE  Algo
   )
 {
-  if ((UINTN) Algo < RSA_ALGORITHM_NUM_TYPES) {
+  if ((UINTN) Algo < RSA_ALGORITHM_TYPE_NUM) {
     return &mRsaAlgorithms[Algo];
   }
   return NULL;
@@ -601,7 +601,7 @@ Mulaa32 (
   UINT32  D
   )
 {
-  UINT64 Ret
+  UINT64 Ret;
 
   Ret  = A;
   Ret *= B;
@@ -843,7 +843,7 @@ RsaParseKeyData (
   UINTN                  ExpectedLength;
 
   RsaKeyStructLen = 0;
-  *RsaPublicKey   = NULL;
+  RsaPublicKey    = NULL;
   ExpectedLength  = 0;
 
   //
@@ -951,7 +951,7 @@ RsaVerify (
   BOOLEAN         IsSuccess;
   RSA_PUBLIC_KEY  *ParsedKey;
   UINT8           *WorkBuffer;
-  UINTN           *CalulatedPaddingNumBytes;
+  UINTN           CalulatedPaddingNumBytes;
 
   IsSuccess  = FALSE;
   ParsedKey  = NULL;
@@ -982,12 +982,12 @@ RsaVerify (
     goto Exit;
   }
 
-  if (OcOverflowSubUN (SigNumBytes, HashNumBytes, CalulatedPaddingNumBytes)) {
+  if (OcOverflowSubUN (SigNumBytes, HashNumBytes, &CalulatedPaddingNumBytes)) {
     DEBUG ((DEBUG_INFO, "OCCR: Integer overflow while calculating real padding num bytes"));
     goto Exit;
   }
 
-  if (PaddingNumBytes != *CalulatedPaddingNumBytes) {
+  if (PaddingNumBytes != CalulatedPaddingNumBytes) {
     DEBUG ((DEBUG_INFO, "OCCR: Padding length does not match hash and signature lengths"));
     goto Exit;
   }
@@ -1048,8 +1048,8 @@ VerifySignature (
   RSA_ALGORITHM_TYPE  Algorithm
   )
 {
-  RSA_ALGORITHM_DATA  *AlgorithmData;
-  BOOLEAN             IsSuccess;
+  CONST RSA_ALGORITHM_DATA *AlgorithmData;
+  BOOLEAN                  IsSuccess;
 
   IsSuccess = FALSE;
 
@@ -1067,11 +1067,6 @@ VerifySignature (
   //
   // CalculateAlgorithmHash (Algorithm, Data, Datalen, ComputedHash);
 
-
-
-
-
-
-
+  return FALSE;
 }
 
