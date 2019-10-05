@@ -948,12 +948,13 @@ RsaVerify (
   UINTN        PaddingNumBytes
   )
 {
-  BOOLEAN         IsSuccess;
+  INTN            CmpResult;
+  INTN            CmpResult2;
   RSA_PUBLIC_KEY  *ParsedKey;
   UINT8           *WorkBuffer;
   UINTN           CalulatedPaddingNumBytes;
 
-  IsSuccess  = FALSE;
+  CmpResult  = -1;
   ParsedKey  = NULL;
   WorkBuffer = NULL;
 
@@ -1011,23 +1012,26 @@ RsaVerify (
   //
   // Check padding bytes.
   //
-  if (SecureCompareMem (WorkBuffer, Padding, PaddingNumBytes) != 0) {
+  CmpResult = SecureCompareMem (WorkBuffer, Padding, PaddingNumBytes);
+  //
+  // FIXME: Remove debug output after validation has been completed.
+  //
+  if (CmpResult != 0) {
     DEBUG ((DEBUG_INFO, "OCCR: Padding check failed\n"));
-    goto Exit;
   }
 
   //
   // Check the hash digest
   //
-  if (SecureCompareMem (WorkBuffer + PaddingNumBytes, Hash, HashNumBytes) != 0) {
+  CmpResult2 = SecureCompareMem (WorkBuffer + PaddingNumBytes, Hash, HashNumBytes);
+  //
+  // FIXME: Remove debug output after validation has been completed.
+  //
+  if (CmpResult2 != 0) {
     DEBUG ((DEBUG_INFO, "OCCR: Hash digest check failed\n"));
-    goto Exit;
   }
 
-  //
-  // All checked out OK
-  //
-  IsSuccess = TRUE;
+  CmpResult |= CmpResult2;
 
 Exit:
   if (ParsedKey != NULL) {
@@ -1037,7 +1041,7 @@ Exit:
   if (WorkBuffer != NULL) {
     FreePool (WorkBuffer);
   }
-  return IsSuccess;
+  return CmpResult == 0;
 }
 
 BOOLEAN
