@@ -643,7 +643,10 @@ GeMod (
 {
   UINT32 Index;
 
-  for (Index = Key->Size - 1; Index > 0; Index--) {
+  Index = Key->Size;
+  while (Index > 0) {
+    --Index;
+
     if (A[Index] < Key->N[Index]){
       return 0;
     }
