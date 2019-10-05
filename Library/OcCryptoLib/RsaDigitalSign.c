@@ -872,8 +872,8 @@ RsaParseKeyData (
   // Validate key num bits
   //
   if (KeyHeader.KeyNumBits != CONFIG_RSA2048_NUM_BITS
-    || KeyHeader.KeyNumBits != CONFIG_RSA4096_NUM_BITS
-    || KeyHeader.KeyNumBits != CONFIG_RSA8192_NUM_BITS) {
+    && KeyHeader.KeyNumBits != CONFIG_RSA4096_NUM_BITS
+    && KeyHeader.KeyNumBits != CONFIG_RSA8192_NUM_BITS) {
     DEBUG ((DEBUG_INFO, "OCCR: Unexpected key length\n"));
     return NULL;
   }
