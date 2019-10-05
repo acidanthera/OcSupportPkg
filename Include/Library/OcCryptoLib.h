@@ -123,9 +123,6 @@ typedef struct RSA_PUBLIC_KEY_HEADER_ {
 
 #pragma pack(pop)
 
-
-#pragma pack(push, 1)
-
 typedef struct RSA_PUBLIC_KEY_ {
   //
   // Length of N[] in number of UINT32
@@ -144,8 +141,6 @@ typedef struct RSA_PUBLIC_KEY_ {
   //
   UINT32  *Rr;
 } RSA_PUBLIC_KEY;
-
-#pragma pack(pop)
 
 typedef struct AES_CONTEXT_ {
   UINT8 RoundKey[AES_KEY_EXP_SIZE];
