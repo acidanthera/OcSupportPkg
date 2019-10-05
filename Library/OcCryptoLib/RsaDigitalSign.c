@@ -993,16 +993,14 @@ RsaVerify (
     goto Exit;
   }
 
-  WorkBuffer = (UINT8 *) AllocateZeroPool (SigNumBytes);
+  //
+  // Copy input to local workspace
+  //
+  WorkBuffer = (UINT8 *) AllocateCopyPool (SigNumBytes, Signature);
   if (WorkBuffer == NULL) {
     DEBUG ((DEBUG_INFO, "OCCR: WorkBuffer allocation failure\n"));
     goto Exit;
   }
-
-  //
-  // Copy input to local workspace
-  //
-  CopyMem (WorkBuffer, Signature, SigNumBytes);
 
   //
   // In-place exponentiation
