@@ -1105,8 +1105,8 @@ ScanIntelProcessor (
 
   //
   // Calculate number of cores
-  //
-  if (Cpu->MaxId >= CPUID_CACHE_PARAMS && Cpu->Model <= CPU_MODEL_PENRYN) {
+  // If we are under visualization, then we should get topology from acpi as Penryn
+  if ((Cpu->MaxId >= CPUID_CACHE_PARAMS && Cpu->Model <= CPU_MODEL_PENRYN) || Cpu->Hypervisor) {
     AsmCpuidEx (CPUID_CACHE_PARAMS, 0, &CpuidCacheEax.Uint32, &CpuidCacheEbx.Uint32, NULL, NULL);
     if (CpuidCacheEax.Bits.CacheType != CPUID_CACHE_PARAMS_CACHE_TYPE_NULL) {
       CoreCount = (UINT16)GetPowerOfTwo32 (CpuidCacheEax.Bits.MaximumAddressableIdsForProcessorCores + 1);
@@ -1201,7 +1201,11 @@ ScanAmdProcessor (
         CofVid           = AsmReadMsr64 (K10_PSTATE_STATUS);
         CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 7);
         CoreDivisorID    = BitFieldRead64 (CofVid, 8, 13);
-        Cpu->MaxBusRatio = (UINT8) (CoreFrequencyID / CoreDivisorID * 2);
+        if (CoreDivisorID > 0ULL){
+          Cpu->MaxBusRatio = (UINT8) (CoreFrequencyID / CoreDivisorID * 2);
+        } else {
+          Cpu->MaxBusRatio = 0;
+        }
         //
         // Get core count from CPUID
         //
@@ -1226,7 +1230,11 @@ ScanAmdProcessor (
         // Core current operating frequency in MHz. CoreCOF = 100 *
         // (MSRC001_00[6B:64][CpuFid] + 10h) / (2 ^ MSRC001_00[6B:64][CpuDid]).
         //
-        Cpu->MaxBusRatio = (UINT8)((CoreFrequencyID + 0x10) / Divisor);
+        if (Divisor > 0ULL){
+          Cpu->MaxBusRatio = (UINT8)((CoreFrequencyID + 0x10) / Divisor);
+        } else {
+          Cpu->MaxBusRatio = 0;
+        }
         //
         // AMD 15h and 16h CPUs don't support hyperthreading,
         // so the core count is equal to the thread count
@@ -1252,8 +1260,12 @@ ScanAmdProcessor (
     //
     Cpu->CurBusRatio = Cpu->MaxBusRatio;
     Cpu->MinBusRatio = Cpu->MaxBusRatio;
-
-    Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequency, Cpu->MaxBusRatio);
+    if (Cpu->MaxBusRatio == 0 || Cpu->Hypervisor) {
+        // if hypervisor is true, then we just set FSBFrequency
+        Cpu->FSBFrequency = 100000000;
+    } else {
+        Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequency, Cpu->MaxBusRatio);
+    }
   }
 }
 
@@ -1363,12 +1375,15 @@ OcCpuScanProcessor (
     Cpu->ExtFamily = (UINT8) Cpu->CpuidVerEax.Bits.ExtendedFamilyId;
     Cpu->Brand     = (UINT8) Cpu->CpuidVerEbx.Bits.BrandIndex;
     Cpu->Features  = (((UINT64) Cpu->CpuidVerEcx.Uint32) << 32ULL) | Cpu->CpuidVerEdx.Uint32;
+    Cpu->Hypervisor = (BOOLEAN) Cpu->CpuidVerEcx.Bits.HYPERVISOR;
     if (Cpu->Features & CPUID_FEATURE_HTT) {
       Cpu->ThreadCount = (UINT16) Cpu->CpuidVerEbx.Bits.MaximumAddressableIdsForLogicalProcessors;
     }
   }
 
   DEBUG ((DEBUG_INFO, "OCCPU: %a %a\n", "Found", Cpu->BrandString));
+
+  DEBUG ((DEBUG_INFO, "OCCPU: Hypervisor: %a\n", Cpu->Hypervisor ? "Yes": "No"));
 
   DEBUG ((
     DEBUG_INFO,
