@@ -1390,7 +1390,7 @@ OcCpuScanProcessor (
 
   DEBUG ((DEBUG_INFO, "OCCPU: %a %a\n", "Found", Cpu->BrandString));
 
-  DEBUG ((DEBUG_INFO, "OCCPU: Hypervisor: %a\n", Cpu->Hypervisor ? "Yes": "No"));
+  DEBUG ((DEBUG_INFO, "OCCPU: Hypervisor: %d\n", Cpu->Hypervisor));
 
   DEBUG ((
     DEBUG_INFO,
