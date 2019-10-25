@@ -67,7 +67,7 @@ typedef struct {
   UINT16                  PackageCount;
   UINT16                  CoreCount;
   UINT16                  ThreadCount;
-  BOOLEAN                   Hypervisor;
+  BOOLEAN                 Hypervisor;
 
   //
   // Platform-dependent frequency for the Always Running Timer (ART), normally
