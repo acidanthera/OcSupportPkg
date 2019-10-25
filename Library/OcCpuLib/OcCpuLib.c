@@ -1252,7 +1252,7 @@ ScanAmdProcessor (
       ));
 
     // if under visualization, we already have those info.
-    if (Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI)) {
+    if (Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI)) { 
         //
         // CPUPM is not supported on AMD, meaning the current
         // and minimum bus ratio are equal to the maximum bus ratio
@@ -1280,6 +1280,7 @@ OcCpuScanProcessor (
   UINT32                  CpuidEbx;
   UINT32                  CpuidEcx;
   UINT32                  CpuidEdx;
+  BOOLEAN                 KVM_EXPOSE;
 
   ASSERT (Cpu != NULL);
 
@@ -1374,7 +1375,14 @@ OcCpuScanProcessor (
 
     // We are not update some dependency yet, until the PR is merged, we still use NotUsed here.
     // see this: https://github.com/acidanthera/audk/pull/2
-    Cpu->Hypervisor = (BOOLEAN) Cpu->CpuidVerEcx.Bits.NotUsed;
+
+    //
+    // Get Hypervisor/visualization infor
+    //
+    AsmCpuid (0x40000000, &CpuidEax, NULL, NULL, NULL);
+    KVM_EXPOSE = (BOOLEAN) (CpuidEax > 0x40000000);
+    Cpu->Hypervisor = (BOOLEAN) ((Cpu->CpuidVerEcx.Bits.NotUsed > 0) & KVM_EXPOSE);
+
     if (Cpu->Features & CPUID_FEATURE_HTT) {
       Cpu->ThreadCount = (UINT16) Cpu->CpuidVerEbx.Bits.MaximumAddressableIdsForLogicalProcessors;
     }
@@ -1420,7 +1428,7 @@ OcCpuScanProcessor (
         Cpu->CurBusRatio = Cpu->CurBusRatio;
 
         DEBUG ((DEBUG_INFO,
-                "OCCPU: VMWare TSC: %11LuHz, %5LuMHz; FSB: %11LuHz, %5LuMHz\n; BusRatio: %d",
+                "OCCPU: VMWare TSC: %11LuHz, %5LuMHz; FSB: %11LuHz, %5LuMHz; BusRatio: %d\n",
                 Cpu->CPUFrequencyFromTSC,
                 DivU64x32 (Cpu->CPUFrequencyFromTSC, 1000000),
                 Cpu->FSBFrequency,
