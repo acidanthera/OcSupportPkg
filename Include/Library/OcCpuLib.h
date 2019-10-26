@@ -37,6 +37,7 @@ typedef struct {
   CPUID_VERSION_INFO_EDX  CpuidVerEdx;
 
   UINT32                  MicrocodeRevision;
+  BOOLEAN                 Hypervisor;   //< indicate whether we are under virtualization
 
   UINT8                   Type;
   UINT8                   Family;
@@ -67,7 +68,6 @@ typedef struct {
   UINT16                  PackageCount;
   UINT16                  CoreCount;
   UINT16                  ThreadCount;
-  BOOLEAN                 Hypervisor;
 
   //
   // Platform-dependent frequency for the Always Running Timer (ART), normally
