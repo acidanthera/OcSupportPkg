@@ -19,13 +19,83 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef OC_CRYPTO_LIB_H
 #define OC_CRYPTO_LIB_H
 
+#include <Library/OcGuardLib.h>
+
+///
+/// A BIGNUM word. This is at best an integer of the platform's natural size
+/// to optimize memory accesses and arithmetic operation count.
+///
+typedef UINTN OC_BN_WORD;
 //
-// Default to 2048-bit key length for RSA.
+// Declarations regarding the Word size.
 //
-#ifndef CONFIG_RSA_KEY_BIT_SIZE
-#define CONFIG_RSA_KEY_BIT_SIZE 2048
-#define CONFIG_RSA_KEY_SIZE (CONFIG_RSA_KEY_BIT_SIZE / 8)
-#endif
+#define OC_BN_WORD_SIZE      (sizeof (OC_BN_WORD))
+#define OC_BN_WORD_NUM_BITS  (OC_BN_WORD_SIZE * 8U)
+//
+// Declarations regarding the maximum size of OC_BN structures.
+//
+typedef UINT16 OC_BN_NUM_WORDS;
+typedef UINT32 OC_BN_NUM_BITS;
+#define OC_BN_MAX_SIZE  MAX_UINT16
+#define OC_BN_MAX_LEN   (OC_BN_MAX_SIZE / OC_BN_WORD_SIZE)
+
+typedef struct {
+  ///
+  /// The number of Words in Words.
+  ///
+  OC_BN_NUM_WORDS NumWords;
+  ///
+  /// The number data in reverse byte order (LSB first).
+  ///
+  OC_BN_WORD      Words[];
+} OC_BN;
+
+/**
+  Declares a fixed-size OC_BN structure with a _##Bytes suffix.
+
+  @param[in] AlignSize  The aligned size of the data array.
+
+**/
+#define OC_BN_DECLARE(AlignSize)                      \
+  OC_STATIC_ASSERT (                                  \
+    ((AlignSize) % OC_BN_WORD_SIZE == 0),             \
+    "OC_BN declaration used an unaligned size."       \
+    );                                                \
+                                                      \
+  OC_STATIC_ASSERT (                                  \
+    ((AlignSize) / OC_BN_WORD_SIZE <= OC_BN_MAX_LEN), \
+    "OC_BN declaration used a too large size."        \
+    );                                                \
+                                                      \
+  typedef struct {                                    \
+    OC_BN_NUM_WORDS NumWords;                         \
+    union {                                           \
+      UINT8      Bytes[bytes];                        \
+      OC_BN_WORD Words[(bytes) / OC_BN_WORD_SIZE];    \
+    };                                                \
+  } OC_BN_##AlignSize
+
+/**
+  Calculates the size of A's data array.
+
+  @param[in] A  The number to be to retrieve the data size of.
+
+  @returns  The data array size of A.
+
+**/
+#define OC_BN_DSIZE(A) ((UINTN)(A)->NumWords * OC_BN_WORD_SIZE)
+
+/**
+  Calculates the size of a OC_BN structure with a data array size of AlignSize.
+  AlignSize must be aligned on a sizeof (OC_BN_WORD) boundary. The size
+  returned is aligned on a OC_ALIGNOF (OC_BN) boundary.
+
+  @param[in] AlignSize  The aligned size of the data array.
+
+  @returns  The requested size of the OC_BN structure.
+**/
+#define OC_BN_SIZE(AlignSize) \
+  (ALIGN_VALUE (sizeof (OC_BN) + (AlignSize), OC_ALIGNOF (OC_BN)))
 
 //
 // Default to 128-bit key length for AES.
@@ -43,6 +113,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define SHA384_DIGEST_SIZE  48
 #define SHA512_DIGEST_SIZE  64
 
+#define OC_MAX_SHA_DIGEST_SIZE  SHA512_DIGEST_SIZE
+
 //
 // Block sizes.
 //
@@ -53,7 +125,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 //
 // Derived parameters.
 //
-#define RSANUMWORDS (CONFIG_RSA_KEY_SIZE / sizeof (UINT32))
 #define AES_BLOCK_SIZE 16
 
 //
@@ -70,22 +141,15 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #endif
 
 //
-// For now abort on anything but 2048, but we can support 1024 and 4096 at least.
+// Possible RSA algorithm types supported by OcCryptoLib
+// for RSA digital signature verification
 //
-#if CONFIG_RSA_KEY_BIT_SIZE != 2048 || CONFIG_RSA_KEY_SIZE != 256
-#error "Only RSA-2048 is supported"
-#endif
-
-#pragma pack(push, 1)
-
-typedef struct RSA_PUBLIC_KEY_ {
-  UINT32  Size;
-  UINT32  N0Inv;
-  UINT32  N[RSANUMWORDS];
-  UINT32  Rr[RSANUMWORDS];
-} RSA_PUBLIC_KEY;
-
-#pragma pack(pop)
+typedef enum OC_RSA_ALGO_TYPE_ {
+  RSA_ALGO_TYPE_SHA256,
+  RSA_ALGO_TYPE_SHA384, 
+  RSA_ALGO_TYPE_SHA512,
+  RSA_ALGO_TYPE_MAX
+} OC_RSA_ALGO_TYPE;
 
 typedef struct AES_CONTEXT_ {
   UINT8 RoundKey[AES_KEY_EXP_SIZE];
@@ -123,15 +187,39 @@ typedef struct SHA512_CONTEXT_ {
 
 typedef SHA512_CONTEXT SHA384_CONTEXT;
 
+#pragma pack(push, 1)
+
+typedef PACKED struct {
+  ///
+  /// The number of 64-bit values in Data.
+  ///
+  UINT16 NumQwords;
+  ///
+  /// Padding for 64-bit alignment. Must be 0 to allow future extensions.
+  ///
+  UINT8  Reserved[6];
+  ///
+  /// The Montgomery Inverse in 64-bit space: -1 / N[0] mod 2^64.
+  ///
+  UINT64 N0Inv;
+} RSA_PUBLIC_KEY_HDR;
+
+typedef PACKED struct {
+  ///
+  /// The RSA Public Key header structure.
+  ///
+  RSA_PUBLIC_KEY_HDR Hdr;
+  ///
+  /// The Modulus and Montgomery's R^2 mod N in little endian byte order.
+  ///
+  UINT64             Data[];
+} RSA_PUBLIC_KEY;
+
+#pragma pack(pop)
+
 //
 // Functions prototypes
 //
-BOOLEAN
-RsaVerify (
-  RSA_PUBLIC_KEY  *Key,
-  UINT8           *Signature,
-  UINT8           *Sha256
-  );
 
 VOID
 AesInitCtxIv (
@@ -148,7 +236,7 @@ AesSetCtxIv (
 
 //
 // Data size MUST be mutiple of AES_BLOCK_SIZE;
-// Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for padding scheme
+// Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for Padding scheme
 // NOTES: you need to set Iv in Context via AesInitCtxIv() or AesSetCtxIv()
 //        no Iv should ever be reused with the same key
 //
@@ -169,7 +257,7 @@ AesCbcDecryptBuffer (
 //
 // Same function for encrypting as for decrypting.
 // Iv is incremented for every block, and used after encryption as XOR-compliment for output
-// Suggesting https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for padding scheme
+// Suggesting https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7 for Padding scheme
 // NOTES: you need to set Iv in Context via AesInitCtxIv() or AesSetCtxIv()
 //        no Iv should ever be reused with the same key
 //
@@ -303,6 +391,118 @@ Sha384 (
   UINT8        *Hash,
   CONST UINT8  *Data,
   UINTN        Len
+  );
+
+/**
+  Verify a RSA PKCS1.5 signature against an expected hash.
+
+  @param[in] Modulus        The RSA modulus byte array.
+  @param[in] ModulusSize    The size, in bytes, of Modulus.
+  @param[in] Exponent       The RSA exponent.
+  @param[in] Signature      The RSA signature to be verified.
+  @param[in] SignatureSize  Size, in bytes, of Signature.
+  @param[in] Hash           The Hash digest of the signed data.
+  @param[in] HashSize       Size, in bytes, of Hash.
+  @param[in] Algorithm      The RSA algorithm used.
+
+  @returns  Whether the signature has been successfully verified as valid.
+
+**/
+BOOLEAN
+RsaVerifyFromKey (
+  IN CONST RSA_PUBLIC_KEY  *Key,
+  IN CONST UINT8           *Signature,
+  IN UINTN                 SignatureSize,
+  IN CONST UINT8           *Hash,
+  IN UINTN                 HashSize,
+  IN OC_RSA_ALGO_TYPE      Algorithm
+  );
+
+/**
+  Verify RSA PKCS1.5 signed data against its signature.
+  The modulus' size must be a multiple of the configured BIGNUM word size.
+  This will be true for any conventional RSA, which use two's potencies.
+
+  @param[in] Modulus        The RSA modulus byte array.
+  @param[in] ModulusSize    The size, in bytes, of Modulus.
+  @param[in] Exponent       The RSA exponent.
+  @param[in] Signature      The RSA signature to be verified.
+  @param[in] SignatureSize  Size, in bytes, of Signature.
+  @param[in] Data           The signed data to verify.
+  @param[in] DataSize       Size, in bytes, of Data.
+  @param[in] Algorithm      The RSA algorithm used.
+
+  @returns  Whether the signature has been successfully verified as valid.
+
+**/
+BOOLEAN
+VerifySignatureFromProcessed (
+  IN CONST OC_BN_WORD  *N,
+  IN OC_BN_WORD        N0Inv,
+  IN CONST OC_BN_WORD  *RSqrMod,
+  IN UINTN             NumWords,
+  IN UINT32            Exponent,
+  IN CONST UINT8       *Signature,
+  IN UINTN             SignatureSize,
+  IN CONST UINT8       *Data,
+  IN UINTN             DataSize,
+  IN OC_RSA_ALGO_TYPE  Algorithm
+  );
+
+/**
+  Verify RSA PKCS1.5 signed data against its signature.
+  The modulus' size must be a multiple of the configured BIGNUM word size.
+  This will be true for any conventional RSA, which use two's potencies.
+
+  @param[in] Modulus        The RSA modulus byte array.
+  @param[in] ModulusSize    The size, in bytes, of Modulus.
+  @param[in] Exponent       The RSA exponent.
+  @param[in] Signature      The RSA signature to be verified.
+  @param[in] SignatureSize  Size, in bytes, of Signature.
+  @param[in] Data           The signed data to verify.
+  @param[in] DataSize       Size, in bytes, of Data.
+  @param[in] Algorithm      The RSA algorithm used.
+
+  @returns  Whether the signature has been successfully verified as valid.
+
+**/
+BOOLEAN
+VerifySignatureFromData (
+  IN CONST UINT8       *Modulus,
+  IN UINTN             ModulusSize,
+  IN UINT32            Exponent,
+  IN CONST UINT8       *Signature,
+  IN UINTN             SignatureSize,
+  IN CONST UINT8       *Data,
+  IN UINTN             DataSize,
+  IN OC_RSA_ALGO_TYPE  Algorithm
+  );
+
+/**
+  Verify RSA PKCS1.5 signed data against its signature.
+  The modulus' size must be a multiple of the configured BIGNUM word size.
+  This will be true for any conventional RSA, which use two's potencies.
+
+  @param[in] Modulus        The RSA modulus byte array.
+  @param[in] ModulusSize    The size, in bytes, of Modulus.
+  @param[in] Exponent       The RSA exponent.
+  @param[in] Signature      The RSA signature to be verified.
+  @param[in] SignatureSize  Size, in bytes, of Signature.
+  @param[in] Data           The signed data to verify.
+  @param[in] DataSize       Size, in bytes, of Data.
+  @param[in] Algorithm      The RSA algorithm used.
+
+  @returns  Whether the signature has been successfully verified as valid.
+
+**/
+BOOLEAN
+VerifySignatureFromKey (
+  IN CONST RSA_PUBLIC_KEY  *Key,
+  IN CONST UINT8           *Signature,
+  IN UINTN                 SignatureSize,
+  IN CONST UINT8           *Data,
+  IN UINTN                 DataSize,
+  IN OC_RSA_ALGO_TYPE      Algorithm
   );
 
 /**

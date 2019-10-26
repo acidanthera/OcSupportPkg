@@ -47,10 +47,13 @@ TestRsa2048Sha256Verify (
     SIGNED_DATA_LEN
     );
 
-  SignatureVerified = RsaVerify (
+  SignatureVerified = RsaVerifyFromKey (
     (RSA_PUBLIC_KEY *) Rsa2048Sha256Sample.PublicKey,
     Rsa2048Sha256Sample.Signature,
-    DataSha256Hash
+    sizeof (Rsa2048Sha256Sample.Signature),
+    DataSha256Hash,
+    sizeof (DataSha256Hash),
+    RSA_ALGO_TYPE_SHA256
     );
 
   if (SignatureVerified) {

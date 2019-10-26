@@ -21,14 +21,6 @@
 #include <Library/OcSerializeLib.h>
 
 /**
-  Ensure that we actually use RSA 2048.
-**/
-OC_STATIC_ASSERT (
-  CONFIG_RSA_KEY_BIT_SIZE == 2048 && CONFIG_RSA_KEY_SIZE == 256,
-  "Unsupported RSA key size"
-  );
-
-/**
   Storage vault file containing a dictionary with SHA-256 hashes for all files.
 **/
 #define OC_STORAGE_VAULT_PATH L"vault.plist"

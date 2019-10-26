@@ -53,7 +53,7 @@ OcAppleChunklistInitializeContext (
 BOOLEAN
 OcAppleChunklistVerifySignature (
   IN OUT OC_APPLE_CHUNKLIST_CONTEXT  *Context,
-  IN     RSA_PUBLIC_KEY              *PublicKey
+  IN     CONST RSA_PUBLIC_KEY        *PublicKey
   );
 
 /**

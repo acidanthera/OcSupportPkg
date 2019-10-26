@@ -694,7 +694,7 @@ VerifyApplePeImageSignature (
   //
   // Verify signature
   //
-  if (RsaVerify (Pk, SignatureContext->Signature, Context->PeImageHash) == 1 ) {
+  if (RsaVerifyFromKey (Pk, SignatureContext->Signature, sizeof (SignatureContext->Signature), Context->PeImageHash, sizeof (Context->PeImageHash), RSA_ALGO_TYPE_SHA256) == 1 ) {
     DEBUG ((DEBUG_INFO, "Signature verified!\n"));
     FreePool (SignatureContext);
     FreePool (Context);
