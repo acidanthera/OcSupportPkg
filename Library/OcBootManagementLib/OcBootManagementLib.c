@@ -406,20 +406,21 @@ OcScanForBootEntries (
     if (Index < Context->AbsoluteEntryCount) {
       SkipCustomEntry = FALSE;
       for (Index1 = 0; Index1 < EntryIndex; ++Index1) {
-          if (Entries[Index1].Type == OcBootCustom) {
-              continue;
-          }
-          DevicePathText = ConvertDevicePathToText (Entries[Index1].DevicePath, FALSE, FALSE);
-          if (!StrCmp (DevicePathText, PathName)) {
-              Entries[Index1].Name = AsciiStrCopyToUnicode (Context->CustomEntries[Index].Name, 0);
-              Entries[Index1].Type = OcBootCustom;
-              FreePool (Entries[EntryIndex].Name);
-              FreePool (PathName);
-              FreePool (DevicePathText);
-              SkipCustomEntry = TRUE;
-              break;
-          }
+        if (Entries[Index1].Type == OcBootCustom) {
+          continue;
+        }
+        DevicePathText = ConvertDevicePathToText (Entries[Index1].DevicePath, FALSE, FALSE);
+        if (!StrCmp (DevicePathText, PathName)) {
+          FreePool (Entries[Index1].Name);
+          Entries[Index1].Name = AsciiStrCopyToUnicode (Context->CustomEntries[Index].Name, 0);
+          Entries[Index1].Type = OcBootCustom;
+          FreePool (Entries[EntryIndex].Name);
+          FreePool (PathName);
           FreePool (DevicePathText);
+          SkipCustomEntry = TRUE;
+          break;
+        }
+        FreePool (DevicePathText);
       }
         
       if (SkipCustomEntry) {
