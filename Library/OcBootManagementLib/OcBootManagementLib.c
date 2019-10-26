@@ -233,6 +233,8 @@ OcScanForBootEntries (
   INTERNAL_DEV_PATH_SCAN_INFO      *DevPathScanInfos;
   EFI_DEVICE_PATH_PROTOCOL         *DevicePathWalker;
   CONST FILEPATH_DEVICE_PATH       *FilePath;
+  UINTN                            Index1;
+  BOOLEAN                          SkipCustomEntry;
 
   Result = OcOverflowMulUN (Context->AllCustomEntryCount, sizeof (OC_BOOT_ENTRY), &EntriesSize);
   if (Result) {
@@ -402,6 +404,28 @@ OcScanForBootEntries (
     Entries[EntryIndex].Type = OcBootCustom;
 
     if (Index < Context->AbsoluteEntryCount) {
+      SkipCustomEntry = FALSE;
+      for (Index1 = 0; Index1 < EntryIndex; ++Index1) {
+          if (Entries[Index1].Type == OcBootCustom) {
+              continue;
+          }
+          DevicePathText = ConvertDevicePathToText (Entries[Index1].DevicePath, FALSE, FALSE);
+          if (!StrCmp (DevicePathText, PathName)) {
+              Entries[Index1].Name = AsciiStrCopyToUnicode (Context->CustomEntries[Index].Name, 0);
+              Entries[Index1].Type = OcBootCustom;
+              FreePool (Entries[EntryIndex].Name);
+              FreePool (PathName);
+              FreePool (DevicePathText);
+              SkipCustomEntry = TRUE;
+              break;
+          }
+          FreePool (DevicePathText);
+      }
+        
+      if (SkipCustomEntry) {
+          continue;
+      }
+        
       Entries[EntryIndex].DevicePath = ConvertTextToDevicePath (PathName);
       FreePool (PathName);
       if (Entries[EntryIndex].DevicePath == NULL) {
