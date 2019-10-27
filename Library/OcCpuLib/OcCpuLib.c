@@ -1008,7 +1008,7 @@ ScanIntelProcessor (
   // the information we want outside the function, skip anyway.
   // Things may be different in other hypervisors, but should work with QEMU/VMWare for now.
   //
-  if (!(Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI))){
+  if (!Cpu->CPUFrequencyFromVMWare){
     //
     // TODO: this may not be accurate on some older processors.
     //
@@ -1190,7 +1190,7 @@ ScanAmdProcessor (
   //           both the operating and the nominal frequency, latter for
   //           the invariant TSC.
   //
-  if (!(Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI))){
+  if (!Cpu->CPUFrequencyFromVMWare){
     Cpu->CPUFrequencyFromTSC = OcCalculateTSCFromPMTimer (Recalculate);
     Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
   }
@@ -1207,10 +1207,12 @@ ScanAmdProcessor (
 
     switch (Cpu->ExtFamily) {
       case AMD_CPU_EXT_FAMILY_17H:
-        CofVid           = AsmReadMsr64 (K10_PSTATE_STATUS);
-        CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 7);
-        CoreDivisorID    = BitFieldRead64 (CofVid, 8, 13);
-        Cpu->MaxBusRatio = (UINT8) (CoreFrequencyID / CoreDivisorID * 2);
+        if (!Cpu->CPUFrequencyFromVMWare){
+          CofVid           = AsmReadMsr64 (K10_PSTATE_STATUS);
+          CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 7);
+          CoreDivisorID    = BitFieldRead64 (CofVid, 8, 13);
+          Cpu->MaxBusRatio = (UINT8) (CoreFrequencyID / CoreDivisorID * 2);
+        }
         //
         // Get core count from CPUID
         //
@@ -1225,17 +1227,19 @@ ScanAmdProcessor (
         break;
       case AMD_CPU_EXT_FAMILY_15H:
       case AMD_CPU_EXT_FAMILY_16H:
-        // FIXME: Please refer to FIXME(1) for the MSR used here.
-        CofVid           = AsmReadMsr64 (K10_COFVID_STATUS);
-        CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 5);
-        CoreDivisorID    = BitFieldRead64 (CofVid, 6, 8);
-        Divisor          = LShiftU64 (1, CoreDivisorID);
-        //
-        // BKDG for AMD Family 15h Models 10h-1Fh Processors (42300 Rev 3.12)
-        // Core current operating frequency in MHz. CoreCOF = 100 *
-        // (MSRC001_00[6B:64][CpuFid] + 10h) / (2 ^ MSRC001_00[6B:64][CpuDid]).
-        //
-        Cpu->MaxBusRatio = (UINT8)((CoreFrequencyID + 0x10) / Divisor);
+        if (!Cpu->CPUFrequencyFromVMWare){
+          // FIXME: Please refer to FIXME(1) for the MSR used here.
+          CofVid           = AsmReadMsr64 (K10_COFVID_STATUS);
+          CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 5);
+          CoreDivisorID    = BitFieldRead64 (CofVid, 6, 8);
+          Divisor          = LShiftU64 (1, CoreDivisorID);
+          //
+          // BKDG for AMD Family 15h Models 10h-1Fh Processors (42300 Rev 3.12)
+          // Core current operating frequency in MHz. CoreCOF = 100 *
+          // (MSRC001_00[6B:64][CpuFid] + 10h) / (2 ^ MSRC001_00[6B:64][CpuDid]).
+          //
+          Cpu->MaxBusRatio = (UINT8)((CoreFrequencyID + 0x10) / Divisor);
+        }
         //
         // AMD 15h and 16h CPUs don't support hyperthreading,
         // so the core count is equal to the thread count
@@ -1258,7 +1262,7 @@ ScanAmdProcessor (
     //
     // When under virtualization this information is already available to us.
     //
-    if (Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI)) { 
+    if (!Cpu->CPUFrequencyFromVMWare) { 
       //
       // CPUPM is not supported on AMD, meaning the current
       // and minimum bus ratio are equal to the maximum bus ratio
@@ -1286,7 +1290,6 @@ OcCpuScanProcessor (
   UINT32                  CpuidEbx;
   UINT32                  CpuidEcx;
   UINT32                  CpuidEdx;
-  BOOLEAN                 KvmExpose;
 
   ASSERT (Cpu != NULL);
 
@@ -1384,10 +1387,8 @@ OcCpuScanProcessor (
     // See https://github.com/acidanthera/audk/pull/2.
     // Get Hypervisor/Virtualization information.
     //
-    AsmCpuid (0x40000000, &CpuidEax, NULL, NULL, NULL);
-    KvmExpose = (BOOLEAN) (CpuidEax >= 0x40000000);
-    DEBUG ((DEBUG_INFO, "OCCPU: KVM Expose: %0X\n", CpuidEax));
-    Cpu->Hypervisor = (BOOLEAN) ((Cpu->CpuidVerEcx.Bits.NotUsed > 0) & KvmExpose);
+    Cpu->Hypervisor = (BOOLEAN) (Cpu->CpuidVerEcx.Bits.NotUsed > 0);
+    DEBUG ((DEBUG_INFO, "OCCPU: Hypervisor: %d\n", Cpu->Hypervisor));
 
     if (Cpu->Features & CPUID_FEATURE_HTT) {
       Cpu->ThreadCount = (UINT16) Cpu->CpuidVerEbx.Bits.MaximumAddressableIdsForLogicalProcessors;
@@ -1395,8 +1396,6 @@ OcCpuScanProcessor (
   }
 
   DEBUG ((DEBUG_INFO, "OCCPU: %a %a\n", "Found", Cpu->BrandString));
-
-  DEBUG ((DEBUG_INFO, "OCCPU: Hypervisor: %d\n", Cpu->Hypervisor));
 
   DEBUG ((
     DEBUG_INFO,
@@ -1418,35 +1417,39 @@ OcCpuScanProcessor (
   //  1. CPUID usage for interaction between Hypervisors and Linux.: https://lwn.net/Articles/301888/
   //  2. [Qemu-devel] [PATCH v2 0/3] x86-kvm: Fix Mac guest timekeeping by exposi: https://lists.gnu.org/archive/html/qemu-devel/2017-01/msg04344.html
   //
-  if (Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI)){
+  AsmCpuid (0x40000000, &CpuidEax, NULL, NULL, NULL);
+  if (Cpu->Hypervisor && (CpuidEax >= 0x40000010)){
     DEBUG ((DEBUG_INFO, "OCCPU: Cpu under virtualization, try get TSC/FSB frequency from VMWare Timing\n"));
     AsmCpuid (0x40000010, &CpuidEax, &CpuidEbx, NULL, NULL);
-    //
-    // We get kHZ from node and we should translate it first.
-    //
-    Cpu->CPUFrequencyFromTSC = CpuidEax * 1000;
-    Cpu->FSBFrequency = CpuidEbx * 1000;
 
-    Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
-    //
-    // We can caculate Bus Ratio here
-    //
-    Cpu->MaxBusRatio = DivU64x32 (Cpu->CPUFrequency, Cpu->FSBFrequency);
-    //
-    // We don't have anything like turbo, so we just assign some variables here
-    //
-    Cpu->MinBusRatio = Cpu->MaxBusRatio;
-    Cpu->CurBusRatio = Cpu->CurBusRatio;
+    if (CpuidEax & CpuidEbx){
+      //
+      // We get kHZ from node and we should translate it first.
+      //
+      Cpu->CPUFrequencyFromVMWare = CpuidEax * 1000;
+      Cpu->FSBFrequency = CpuidEbx * 1000;
 
-    DEBUG ((
-      DEBUG_INFO,
-      "OCCPU: VMWare TSC: %11LuHz, %5LuMHz; FSB: %11LuHz, %5LuMHz; BusRatio: %d\n",
-      Cpu->CPUFrequencyFromTSC,
-      DivU64x32 (Cpu->CPUFrequencyFromTSC, 1000000),
-      Cpu->FSBFrequency,
-      DivU64x32 (Cpu->FSBFrequency, 1000000),
-      Cpu->MaxBusRatio
-      ));
+      Cpu->CPUFrequency = Cpu->CPUFrequencyFromVMWare;
+      //
+      // We can caculate Bus Ratio here
+      //
+      Cpu->MaxBusRatio = DivU64x32 (Cpu->CPUFrequency, Cpu->FSBFrequency);
+      //
+      // We don't have anything like turbo, so we just assign some variables here
+      //
+      Cpu->MinBusRatio = Cpu->MaxBusRatio;
+      Cpu->CurBusRatio = Cpu->CurBusRatio;
+
+      DEBUG ((
+        DEBUG_INFO,
+        "OCCPU: VMWare TSC: %11LuHz, %5LuMHz; FSB: %11LuHz, %5LuMHz; BusRatio: %d\n",
+        Cpu->CPUFrequency,
+        DivU64x32 (Cpu->CPUFrequency, 1000000),
+        Cpu->FSBFrequency,
+        DivU64x32 (Cpu->FSBFrequency, 1000000),
+        Cpu->MaxBusRatio
+        ));
+    }
   }
 
   if (Cpu->Vendor[0] == CPUID_VENDOR_INTEL) {

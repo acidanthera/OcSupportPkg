@@ -105,6 +105,13 @@ typedef struct {
   //
   UINT64                  CPUFrequencyFromART;
 
+
+  //
+  // The CPU frequency derived from the CPUID VMWare Timing leaf.
+  // 0 if VMWare Timing leaf is not present.
+  //
+  UINT64                  CPUFrequencyFromVMWare;
+
   //
   // The Front Side Bus (FSB) frequency calculated from dividing the CPU
   // frequency by the Max Ratio.
