@@ -1009,105 +1009,105 @@ ScanIntelProcessor (
   // Things maybe different in other hypervisors, but should work with QEMU/VMWare now
   //
   if (!(Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI))){
+    //
+    // TODO: this may not be accurate on some older processors.
+    //
+    if (Cpu->Model >= CPU_MODEL_NEHALEM) {
+      PerfStatus.Uint64 = AsmReadMsr64 (MSR_IA32_PERF_STATUS);
+      Cpu->CurBusRatio = (UINT8) (PerfStatus.Bits.State >> 8U);
+      PlatformInfo.Uint64 = AsmReadMsr64 (MSR_NEHALEM_PLATFORM_INFO);
+      Cpu->MinBusRatio = (UINT8) PlatformInfo.Bits.MaximumEfficiencyRatio;
+      Cpu->MaxBusRatio = (UINT8) PlatformInfo.Bits.MaximumNonTurboRatio;
+    } else if (Cpu->Model >= CPU_MODEL_PENRYN) {
+      PerfStatus.Uint64 = AsmReadMsr64 (MSR_IA32_PERF_STATUS);
+      Cpu->MaxBusRatio = (UINT8) (PerfStatus.Uint64 >> 8U) & 0x1FU;
       //
-      // TODO: this may not be accurate on some older processors.
+      // Undocumented values:
+      // Non-integer bus ratio for the max-multi.
+      // Non-integer bus ratio for the current-multi.
       //
-      if (Cpu->Model >= CPU_MODEL_NEHALEM) {
-        PerfStatus.Uint64 = AsmReadMsr64 (MSR_IA32_PERF_STATUS);
-        Cpu->CurBusRatio = (UINT8) (PerfStatus.Bits.State >> 8U);
-        PlatformInfo.Uint64 = AsmReadMsr64 (MSR_NEHALEM_PLATFORM_INFO);
-        Cpu->MinBusRatio = (UINT8) PlatformInfo.Bits.MaximumEfficiencyRatio;
-        Cpu->MaxBusRatio = (UINT8) PlatformInfo.Bits.MaximumNonTurboRatio;
-      } else if (Cpu->Model >= CPU_MODEL_PENRYN) {
-        PerfStatus.Uint64 = AsmReadMsr64 (MSR_IA32_PERF_STATUS);
-        Cpu->MaxBusRatio = (UINT8) (PerfStatus.Uint64 >> 8U) & 0x1FU;
-        //
-        // Undocumented values:
-        // Non-integer bus ratio for the max-multi.
-        // Non-integer bus ratio for the current-multi.
-        //
-        // MaxBusRatioDiv = (UINT8)(PerfStatus.Uint64 >> 46U) & 0x01U;
-        // CurrDiv = (UINT8)(PerfStatus.Uint64 >> 14U) & 0x01U;
-        //
-      }
+      // MaxBusRatioDiv = (UINT8)(PerfStatus.Uint64 >> 46U) & 0x01U;
+      // CurrDiv = (UINT8)(PerfStatus.Uint64 >> 14U) & 0x01U;
+      //
+    }
 
-      if (Cpu->Model >= CPU_MODEL_NEHALEM
-        && Cpu->Model != CPU_MODEL_NEHALEM_EX
-        && Cpu->Model != CPU_MODEL_WESTMERE_EX) {
-        TurboLimit.Uint64 = AsmReadMsr64 (MSR_NEHALEM_TURBO_RATIO_LIMIT);
-        Cpu->TurboBusRatio1 = (UINT8) TurboLimit.Bits.Maximum1C;
-        Cpu->TurboBusRatio2 = (UINT8) TurboLimit.Bits.Maximum2C;
-        Cpu->TurboBusRatio3 = (UINT8) TurboLimit.Bits.Maximum3C;
-        Cpu->TurboBusRatio4 = (UINT8) TurboLimit.Bits.Maximum4C;
-      }
+    if (Cpu->Model >= CPU_MODEL_NEHALEM
+      && Cpu->Model != CPU_MODEL_NEHALEM_EX
+      && Cpu->Model != CPU_MODEL_WESTMERE_EX) {
+      TurboLimit.Uint64 = AsmReadMsr64 (MSR_NEHALEM_TURBO_RATIO_LIMIT);
+      Cpu->TurboBusRatio1 = (UINT8) TurboLimit.Bits.Maximum1C;
+      Cpu->TurboBusRatio2 = (UINT8) TurboLimit.Bits.Maximum2C;
+      Cpu->TurboBusRatio3 = (UINT8) TurboLimit.Bits.Maximum3C;
+      Cpu->TurboBusRatio4 = (UINT8) TurboLimit.Bits.Maximum4C;
+    }
 
+    DEBUG ((
+      DEBUG_INFO,
+      "OCCPU: Ratio Min %d Max %d Current %d Turbo %d %d %d %d\n",
+      Cpu->MinBusRatio,
+      Cpu->MaxBusRatio,
+      Cpu->CurBusRatio,
+      Cpu->TurboBusRatio1,
+      Cpu->TurboBusRatio2,
+      Cpu->TurboBusRatio3,
+      Cpu->TurboBusRatio4
+      ));
+
+    //
+    // For logging purposes (the first call to these functions might happen
+    // before logging is fully initialised), do not use the cached results in
+    // DEBUG builds.
+    //
+    Recalculate = FALSE;
+
+    DEBUG_CODE_BEGIN ();
+    Recalculate = TRUE;
+    DEBUG_CODE_END ();
+
+    //
+    // Calculate the Tsc frequency
+    //
+    DEBUG_CODE_BEGIN ();
+    TimerAddr = OcGetPmTimerAddr (&TimerSourceType);
+    DEBUG ((DEBUG_INFO, "OCCPU: Timer address is %Lx from %a\n", (UINT64) TimerAddr, TimerSourceType));
+    DEBUG_CODE_END ();
+    Cpu->CPUFrequencyFromTSC = OcCalculateTSCFromPMTimer (Recalculate);
+
+    //
+    // Determine our core crystal clock frequency
+    //
+    Cpu->ARTFrequency = OcCalcluateARTFrequencyIntel (&Cpu->CPUFrequencyFromART, Recalculate);
+
+    //
+    // Calculate CPU frequency based on ART if present, otherwise TSC
+    //
+    Cpu->CPUFrequency = Cpu->CPUFrequencyFromART > 0 ? Cpu->CPUFrequencyFromART : Cpu->CPUFrequencyFromTSC;
+
+    //
+    // Verify that our two CPU frequency calculations do not differ substantially.
+    //
+    if (Cpu->CPUFrequencyFromART > 0 && Cpu->CPUFrequencyFromTSC > 0
+      && ABS((INT64) Cpu->CPUFrequencyFromART - (INT64) Cpu->CPUFrequencyFromTSC) > OC_CPU_FREQUENCY_TOLERANCE) {
       DEBUG ((
-        DEBUG_INFO,
-        "OCCPU: Ratio Min %d Max %d Current %d Turbo %d %d %d %d\n",
-        Cpu->MinBusRatio,
-        Cpu->MaxBusRatio,
-        Cpu->CurBusRatio,
-        Cpu->TurboBusRatio1,
-        Cpu->TurboBusRatio2,
-        Cpu->TurboBusRatio3,
-        Cpu->TurboBusRatio4
+        DEBUG_WARN,
+        "OCCPU: ART based CPU frequency differs substantially from TSC: %11LuHz != %11LuHz\n",
+        Cpu->CPUFrequencyFromART,
+        Cpu->CPUFrequencyFromTSC
         ));
+    }
 
+    //
+    // There may be some quirks with virtual CPUs (VMware is fine).
+    // Formerly we checked Cpu->MinBusRatio > 0, but we have no MinBusRatio on Penryn.
+    //
+    if (Cpu->CPUFrequency > 0 && Cpu->MaxBusRatio > Cpu->MinBusRatio) {
+      Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequency, Cpu->MaxBusRatio);
+    } else {
       //
-      // For logging purposes (the first call to these functions might happen
-      // before logging is fully initialised), do not use the cached results in
-      // DEBUG builds.
+      // TODO: It seems to be possible that CPU frequency == 0 here...
       //
-      Recalculate = FALSE;
-
-      DEBUG_CODE_BEGIN ();
-      Recalculate = TRUE;
-      DEBUG_CODE_END ();
-
-      //
-      // Calculate the Tsc frequency
-      //
-      DEBUG_CODE_BEGIN ();
-      TimerAddr = OcGetPmTimerAddr (&TimerSourceType);
-      DEBUG ((DEBUG_INFO, "OCCPU: Timer address is %Lx from %a\n", (UINT64) TimerAddr, TimerSourceType));
-      DEBUG_CODE_END ();
-      Cpu->CPUFrequencyFromTSC = OcCalculateTSCFromPMTimer (Recalculate);
-
-      //
-      // Determine our core crystal clock frequency
-      //
-      Cpu->ARTFrequency = OcCalcluateARTFrequencyIntel (&Cpu->CPUFrequencyFromART, Recalculate);
-
-      //
-      // Calculate CPU frequency based on ART if present, otherwise TSC
-      //
-      Cpu->CPUFrequency = Cpu->CPUFrequencyFromART > 0 ? Cpu->CPUFrequencyFromART : Cpu->CPUFrequencyFromTSC;
-
-      //
-      // Verify that our two CPU frequency calculations do not differ substantially.
-      //
-      if (Cpu->CPUFrequencyFromART > 0 && Cpu->CPUFrequencyFromTSC > 0
-        && ABS((INT64) Cpu->CPUFrequencyFromART - (INT64) Cpu->CPUFrequencyFromTSC) > OC_CPU_FREQUENCY_TOLERANCE) {
-        DEBUG ((
-          DEBUG_WARN,
-          "OCCPU: ART based CPU frequency differs substantially from TSC: %11LuHz != %11LuHz\n",
-          Cpu->CPUFrequencyFromART,
-          Cpu->CPUFrequencyFromTSC
-          ));
-      }
-
-      //
-      // There may be some quirks with virtual CPUs (VMware is fine).
-      // Formerly we checked Cpu->MinBusRatio > 0, but we have no MinBusRatio on Penryn.
-      //
-      if (Cpu->CPUFrequency > 0 && Cpu->MaxBusRatio > Cpu->MinBusRatio) {
-        Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequency, Cpu->MaxBusRatio);
-      } else {
-        //
-        // TODO: It seems to be possible that CPU frequency == 0 here...
-        //
-        Cpu->FSBFrequency = 100000000; // 100 Mhz
-      }
+      Cpu->FSBFrequency = 100000000; // 100 Mhz
+    }
   }
   //
   // Calculate number of cores
@@ -1190,10 +1190,10 @@ ScanAmdProcessor (
   //           both the operating and the nominal frequency, latter for
   //           the invariant TSC.
   //
-    if (!(Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI))){
-        Cpu->CPUFrequencyFromTSC = OcCalculateTSCFromPMTimer (Recalculate);
-        Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
-    }
+  if (!(Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI))){
+      Cpu->CPUFrequencyFromTSC = OcCalculateTSCFromPMTimer (Recalculate);
+      Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
+  }
   //
   // Get core and thread count from CPUID
   //
@@ -1419,29 +1419,34 @@ OcCpuScanProcessor (
   //  2. [Qemu-devel] [PATCH v2 0/3] x86-kvm: Fix Mac guest timekeeping by exposi: https://lists.gnu.org/archive/html/qemu-devel/2017-01/msg04344.html
   //
   if (Cpu->Hypervisor && (Cpu->Features & CPUID_EXTFEATURE_TSCI)){
-      DEBUG ((DEBUG_INFO, "OCCPU: Cpu under virsualization, try get TSC/FSB frequency from VMWare Timing\n"));
-      AsmCpuid (0x40000010, &CpuidEax, &CpuidEbx, NULL, NULL);
+    DEBUG ((DEBUG_INFO, "OCCPU: Cpu under virsualization, try get TSC/FSB frequency from VMWare Timing\n"));
+    AsmCpuid (0x40000010, &CpuidEax, &CpuidEbx, NULL, NULL);
+    //
+    // We get kHZ from node and we should translate it first.
+    //
+    Cpu->CPUFrequencyFromTSC = CpuidEax * 1000;
+    Cpu->FSBFrequency = CpuidEbx * 1000;
 
-      // We get kHZ from node and we should translate it first.
-      Cpu->CPUFrequencyFromTSC = CpuidEax * 1000;
-      Cpu->FSBFrequency = CpuidEbx * 1000;
 
+    Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
+    //
+    // We can caculate Bus Ratio here
+    //
+    Cpu->MaxBusRatio = DivU64x32(Cpu->CPUFrequency, Cpu->FSBFrequency);
+    //
+    // We don't have anything like turbo, so we just do it here
+    //
+    Cpu->MinBusRatio = Cpu->MaxBusRatio;
+    Cpu->CurBusRatio = Cpu->CurBusRatio;
 
-      Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
-      // We can caculate Bus Ratio here
-      Cpu->MaxBusRatio = DivU64x32(Cpu->CPUFrequency, Cpu->FSBFrequency);
-      // We don't have anything like turbo, so we just do it here
-      Cpu->MinBusRatio = Cpu->MaxBusRatio;
-      Cpu->CurBusRatio = Cpu->CurBusRatio;
-
-      DEBUG ((DEBUG_INFO,
-        "OCCPU: VMWare TSC: %11LuHz, %5LuMHz; FSB: %11LuHz, %5LuMHz; BusRatio: %d\n",
-        Cpu->CPUFrequencyFromTSC,
-        DivU64x32 (Cpu->CPUFrequencyFromTSC, 1000000),
-        Cpu->FSBFrequency,
-        DivU64x32 (Cpu->FSBFrequency, 1000000),
-        Cpu->MaxBusRatio
-        ));
+    DEBUG ((DEBUG_INFO,
+      "OCCPU: VMWare TSC: %11LuHz, %5LuMHz; FSB: %11LuHz, %5LuMHz; BusRatio: %d\n",
+      Cpu->CPUFrequencyFromTSC,
+      DivU64x32 (Cpu->CPUFrequencyFromTSC, 1000000),
+      Cpu->FSBFrequency,
+      DivU64x32 (Cpu->FSBFrequency, 1000000),
+      Cpu->MaxBusRatio
+      ));
   }
 
   if (Cpu->Vendor[0] == CPUID_VENDOR_INTEL) {
