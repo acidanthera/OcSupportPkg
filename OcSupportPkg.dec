@@ -106,6 +106,9 @@
   OcAppleImageVerificationLib|Include/Library/OcAppleImageVerificationLib.h
 
   ##  @libraryclass
+  OcAppleImg4Lib|Include/Library/OcAppleImg4Lib.h
+
+  ##  @libraryclass
   OcAppleKernelLib|Include/Library/OcAppleKernelLib.h
 
   ##  @libraryclass
