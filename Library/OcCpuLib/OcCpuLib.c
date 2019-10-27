@@ -1008,7 +1008,7 @@ ScanIntelProcessor (
   // the information we want outside the function, skip anyway.
   // Things may be different in other hypervisors, but should work with QEMU/VMWare for now.
   //
-  if (!Cpu->CPUFrequencyFromVMWare){
+  if (Cpu->CPUFrequencyFromVMT == 0){
     //
     // TODO: this may not be accurate on some older processors.
     //
@@ -1190,7 +1190,7 @@ ScanAmdProcessor (
   //           both the operating and the nominal frequency, latter for
   //           the invariant TSC.
   //
-  if (!Cpu->CPUFrequencyFromVMWare){
+  if (Cpu->CPUFrequencyFromVMT == 0){
     Cpu->CPUFrequencyFromTSC = OcCalculateTSCFromPMTimer (Recalculate);
     Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
   }
@@ -1207,7 +1207,7 @@ ScanAmdProcessor (
 
     switch (Cpu->ExtFamily) {
       case AMD_CPU_EXT_FAMILY_17H:
-        if (!Cpu->CPUFrequencyFromVMWare){
+        if (Cpu->CPUFrequencyFromVMT == 0){
           CofVid           = AsmReadMsr64 (K10_PSTATE_STATUS);
           CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 7);
           CoreDivisorID    = BitFieldRead64 (CofVid, 8, 13);
@@ -1227,7 +1227,7 @@ ScanAmdProcessor (
         break;
       case AMD_CPU_EXT_FAMILY_15H:
       case AMD_CPU_EXT_FAMILY_16H:
-        if (!Cpu->CPUFrequencyFromVMWare){
+        if (Cpu->CPUFrequencyFromVMT == 0){
           // FIXME: Please refer to FIXME(1) for the MSR used here.
           CofVid           = AsmReadMsr64 (K10_COFVID_STATUS);
           CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 5);
@@ -1262,7 +1262,7 @@ ScanAmdProcessor (
     //
     // When under virtualization this information is already available to us.
     //
-    if (!Cpu->CPUFrequencyFromVMWare) { 
+    if (Cpu->CPUFrequencyFromVMT == 0) { 
       //
       // CPUPM is not supported on AMD, meaning the current
       // and minimum bus ratio are equal to the maximum bus ratio
@@ -1426,10 +1426,10 @@ OcCpuScanProcessor (
       //
       // We get kHZ from node and we should translate it first.
       //
-      Cpu->CPUFrequencyFromVMWare = CpuidEax * 1000;
+      Cpu->CPUFrequencyFromVMT = CpuidEax * 1000;
       Cpu->FSBFrequency = CpuidEbx * 1000;
 
-      Cpu->CPUFrequency = Cpu->CPUFrequencyFromVMWare;
+      Cpu->CPUFrequency = Cpu->CPUFrequencyFromVMT;
       //
       // We can caculate Bus Ratio here
       //
