@@ -22,20 +22,24 @@ typedef struct {
   ///
   /// RSA Public Key header structure.
   ///
-  RSA_PUBLIC_KEY_HDR Hdr;
+  OC_RSA_PUBLIC_KEY_HDR Hdr;
   ///
   /// The Modulus and Montgomery's R^2 mod N in little endian byte order.
   ///
   union {
-    UINT8            Bytes[512];
-    UINT64           QWords[32];
-  }                  Data;
+    UINT8               Bytes[512];
+    UINT64              Qwords[32];
+  }                     Data;
 } RSA_PUBLIC_KEY_2048;
 
 #pragma pack(pop)
 
+//
+// Verify the structure size equals to the header plus two times the key size
+// (N and R^2 mod N).
+//
 OC_STATIC_ASSERT (
-  sizeof (RSA_PUBLIC_KEY_2048) == sizeof (RSA_PUBLIC_KEY_HDR) + 512,
+  sizeof (RSA_PUBLIC_KEY_2048) == sizeof (OC_RSA_PUBLIC_KEY_HDR) + 2 * (2048 / 8),
   "The 2048-bit RSA PK struct is malformed."
   );
 
@@ -194,7 +198,7 @@ CONST APPLE_PK_ENTRY PkDataBase[NUM_OF_PK] = {
       0x5b, 0xec, 0x6b, 0xf1, 0x56, 0xa5, 0x5c, 0xf9, 0x24, 0x7f, 0x22, 0xef,
       0x78, 0x62, 0x35, 0x53, 0x7f, 0x95, 0x2b, 0x45
     },
-    (CONST RSA_PUBLIC_KEY *)&mPkDb1
+    (CONST OC_RSA_PUBLIC_KEY *)&mPkDb1
   },
   {
     //
@@ -205,7 +209,7 @@ CONST APPLE_PK_ENTRY PkDataBase[NUM_OF_PK] = {
       0x45, 0xf0, 0xd9, 0xd0, 0x2b, 0xcc, 0x95, 0x19, 0x49, 0x20, 0x46, 0x67,
       0x1e, 0x1f, 0xcd, 0xdd, 0x18, 0xdc, 0x9b, 0x8b
     },
-    (CONST RSA_PUBLIC_KEY *)&mPkDb2
+    (CONST OC_RSA_PUBLIC_KEY *)&mPkDb2
   }
 };
 

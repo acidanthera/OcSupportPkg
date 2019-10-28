@@ -96,7 +96,7 @@ OcStorageInitFromFs (
   OUT OC_STORAGE_CONTEXT               *Context,
   IN  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *FileSystem,
   IN  CONST CHAR16                     *Path,
-  IN  RSA_PUBLIC_KEY                   *StorageKey OPTIONAL
+  IN  OC_RSA_PUBLIC_KEY                *StorageKey OPTIONAL
   );
 
 /**

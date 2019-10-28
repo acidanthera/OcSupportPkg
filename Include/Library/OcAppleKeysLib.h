@@ -21,8 +21,8 @@
 #define NUM_OF_PK 2
 
 typedef struct APPLE_PK_ENTRY_ {
-  UINT8                Hash[SHA256_DIGEST_SIZE];
-  CONST RSA_PUBLIC_KEY *PublicKey;
+  UINT8                   Hash[SHA256_DIGEST_SIZE];
+  CONST OC_RSA_PUBLIC_KEY *PublicKey;
 } APPLE_PK_ENTRY;
 
 extern CONST APPLE_PK_ENTRY PkDataBase[NUM_OF_PK];

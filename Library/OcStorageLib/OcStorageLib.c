@@ -125,7 +125,7 @@ OcStorageInitializeVault (
   IN OUT OC_STORAGE_CONTEXT  *Context,
   IN     VOID                *Vault        OPTIONAL,
   IN     UINT32              VaultSize,
-  IN     RSA_PUBLIC_KEY      *StorageKey   OPTIONAL,
+  IN     OC_RSA_PUBLIC_KEY   *StorageKey   OPTIONAL,
   IN     VOID                *Signature    OPTIONAL,
   IN     UINT32              SignatureSize OPTIONAL
   )
@@ -143,7 +143,7 @@ OcStorageInitializeVault (
   if (Signature != NULL) {
     ASSERT (StorageKey != NULL);
 
-    if (!VerifySignatureFromKey (StorageKey, Signature, SignatureSize, Vault, VaultSize, RSA_ALGO_TYPE_SHA256)) {
+    if (!RsaVerifySigDataFromKey (StorageKey, Signature, SignatureSize, Vault, VaultSize, OcSigHashTypeSha256)) {
       DEBUG ((DEBUG_ERROR, "OCS: Invalid vault signature\n"));
       return EFI_SECURITY_VIOLATION;
     }
@@ -216,7 +216,7 @@ OcStorageInitFromFs (
   OUT OC_STORAGE_CONTEXT               *Context,
   IN  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *FileSystem,
   IN  CONST CHAR16                     *Path,
-  IN  RSA_PUBLIC_KEY                   *StorageKey OPTIONAL
+  IN  OC_RSA_PUBLIC_KEY                *StorageKey OPTIONAL
   )
 {
   EFI_STATUS         Status;

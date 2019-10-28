@@ -43,24 +43,27 @@ DERImg4VerifySignature (
   const DERItem  *AlgoOid
   )
 {
-  OC_RSA_ALGO_TYPE AlgoType;
+  OC_SIG_HASH_TYPE AlgoType;
 
   ASSERT (Modulus != NULL);
   ASSERT (ModulusSize > 0);
   ASSERT (Signature != NULL);
   ASSERT (SignatureSize > 0);
+  ASSERT (Data != NULL);
+  ASSERT (DataSize > 0);
+  ASSERT (AlgoOid != NULL);
 
   if (DEROidCompare (AlgoOid, &oidSha512Rsa)) {
-    AlgoType = RSA_ALGO_TYPE_SHA512;
+    AlgoType = OcSigHashTypeSha512;
   } else if (DEROidCompare (AlgoOid, &oidSha384Rsa)) {
-    AlgoType = RSA_ALGO_TYPE_SHA384;
+    AlgoType = OcSigHashTypeSha384;
   } else if (DEROidCompare (AlgoOid, &oidSha256Rsa)) {
-    AlgoType = RSA_ALGO_TYPE_SHA256;
+    AlgoType = OcSigHashTypeSha256;
   } else {
     return false;
   }
 
-  return VerifySignatureFromData (
+  return RsaVerifySigDataFromData (
            Modulus,
            ModulusSize,
            Exponent,

@@ -66,7 +66,7 @@ STATIC CONST UINT8 mPkcsDigestEncodingPrefixSha512[] = {
 
 **/
 BOOLEAN
-RsaVerifyFromProcessed (
+RsaVerifySigHashFromProcessed (
   IN CONST OC_BN_WORD  *N,
   IN OC_BN_WORD        N0Inv,
   IN CONST OC_BN_WORD  *RSqrMod,
@@ -76,7 +76,7 @@ RsaVerifyFromProcessed (
   IN UINTN             SignatureSize,
   IN CONST UINT8       *Hash,
   IN UINTN             HashSize,
-  IN OC_RSA_ALGO_TYPE  Algorithm
+  IN OC_SIG_HASH_TYPE  Algorithm
   )
 {
   BOOLEAN     Result;
@@ -104,7 +104,7 @@ RsaVerifyFromProcessed (
   ASSERT (HashSize > 0);
 
   OC_STATIC_ASSERT (
-    RSA_ALGO_TYPE_SHA512 == RSA_ALGO_TYPE_MAX - 1,
+    OcSigHashTypeSha512 == OcSigHashTypeMax - 1,
     "New switch cases have to be added for every introduced algorithm."
     );
 
@@ -113,7 +113,7 @@ RsaVerifyFromProcessed (
   }
 
   switch (Algorithm) {
-    case RSA_ALGO_TYPE_SHA256:
+    case OcSigHashTypeSha256:
     {
       if (HashSize != SHA256_DIGEST_SIZE) {
         return FALSE;
@@ -124,7 +124,7 @@ RsaVerifyFromProcessed (
       break;
     }
 
-    case RSA_ALGO_TYPE_SHA384:
+    case OcSigHashTypeSha384:
     {
       if (HashSize != SHA384_DIGEST_SIZE) {
         return FALSE;
@@ -135,7 +135,7 @@ RsaVerifyFromProcessed (
       break;
     }
 
-    case RSA_ALGO_TYPE_SHA512:
+    case OcSigHashTypeSha512:
     {
       if (HashSize != SHA512_DIGEST_SIZE) {
         return FALSE;
@@ -292,7 +292,7 @@ RsaVerifyFromProcessed (
 
 **/
 BOOLEAN
-VerifySignatureFromProcessed (
+RsaVerifySigDataFromProcessed (
   IN CONST OC_BN_WORD  *N,
   IN OC_BN_WORD        N0Inv,
   IN CONST OC_BN_WORD  *RSqrMod,
@@ -302,7 +302,7 @@ VerifySignatureFromProcessed (
   IN UINTN             SignatureSize,
   IN CONST UINT8       *Data,
   IN UINTN             DataSize,
-  IN OC_RSA_ALGO_TYPE  Algorithm
+  IN OC_SIG_HASH_TYPE  Algorithm
   )
 {
   UINT8 Hash[OC_MAX_SHA_DIGEST_SIZE];
@@ -318,26 +318,26 @@ VerifySignatureFromProcessed (
   ASSERT (DataSize > 0);
 
   OC_STATIC_ASSERT (
-    RSA_ALGO_TYPE_SHA512 == RSA_ALGO_TYPE_MAX - 1,
+    OcSigHashTypeSha512 == OcSigHashTypeMax - 1,
     "New switch cases have to be added for every introduced algorithm."
     );
 
   switch (Algorithm) {
-    case RSA_ALGO_TYPE_SHA256:
+    case OcSigHashTypeSha256:
     {
       Sha256 (Hash, Data, DataSize);
       HashSize = SHA256_DIGEST_SIZE;
       break;
     }
 
-    case RSA_ALGO_TYPE_SHA384:
+    case OcSigHashTypeSha384:
     {
       Sha384 (Hash, Data, DataSize);
       HashSize = SHA384_DIGEST_SIZE;
       break;
     }
 
-    case RSA_ALGO_TYPE_SHA512:
+    case OcSigHashTypeSha512:
     {
       Sha512 (Hash, Data, DataSize);
       HashSize = SHA512_DIGEST_SIZE;
@@ -354,7 +354,7 @@ VerifySignatureFromProcessed (
     }
   }
 
-  return RsaVerifyFromProcessed (
+  return RsaVerifySigHashFromProcessed (
            N,
            N0Inv,
            RSqrMod,
@@ -386,7 +386,7 @@ VerifySignatureFromProcessed (
 
 **/
 BOOLEAN
-VerifySignatureFromData (
+RsaVerifySigDataFromData (
   IN CONST UINT8       *Modulus,
   IN UINTN             ModulusSize,
   IN UINT32            Exponent,
@@ -394,7 +394,7 @@ VerifySignatureFromData (
   IN UINTN             SignatureSize,
   IN CONST UINT8       *Data,
   IN UINTN             DataSize,
-  IN OC_RSA_ALGO_TYPE  Algorithm
+  IN OC_SIG_HASH_TYPE  Algorithm
   )
 {
   UINTN      ModulusNumWords;
@@ -446,7 +446,7 @@ VerifySignatureFromData (
     return FALSE;
   }
 
-  Result = VerifySignatureFromProcessed (
+  Result = RsaVerifySigDataFromProcessed (
              N->Words,
              N0Inv,
              RSqrMod->Words,
@@ -465,10 +465,9 @@ VerifySignatureFromData (
 
 /**
   Verify a RSA PKCS1.5 signature against an expected hash.
+  The exponent is always 65537 as per the format specification.
 
-  @param[in] Modulus        The RSA modulus byte array.
-  @param[in] ModulusSize    The size, in bytes, of Modulus.
-  @param[in] Exponent       The RSA exponent.
+  @param[in] Key            The RSA Public Key.
   @param[in] Signature      The RSA signature to be verified.
   @param[in] SignatureSize  Size, in bytes, of Signature.
   @param[in] Hash           The Hash digest of the signed data.
@@ -479,13 +478,13 @@ VerifySignatureFromData (
 
 **/
 BOOLEAN
-RsaVerifyFromKey (
-  IN CONST RSA_PUBLIC_KEY  *Key,
-  IN CONST UINT8           *Signature,
-  IN UINTN                 SignatureSize,
-  IN CONST UINT8           *Hash,
-  IN UINTN                 HashSize,
-  IN OC_RSA_ALGO_TYPE      Algorithm
+RsaVerifySigHashFromKey (
+  IN CONST OC_RSA_PUBLIC_KEY  *Key,
+  IN CONST UINT8              *Signature,
+  IN UINTN                    SignatureSize,
+  IN CONST UINT8              *Hash,
+  IN UINTN                    HashSize,
+  IN OC_SIG_HASH_TYPE         Algorithm
   )
 {
   ASSERT (Key != NULL);
@@ -502,7 +501,7 @@ RsaVerifyFromKey (
   // When OC_BN_WORD is not UINT64, this violates the strict aliasing rule.
   // However, due to packed-ness and byte order, this is perfectly safe.
   //
-  return RsaVerifyFromProcessed (
+  return RsaVerifySigHashFromProcessed (
            (OC_BN_WORD *)Key->Data,
            (OC_BN_WORD)Key->Hdr.N0Inv,
            (OC_BN_WORD *)&Key->Data[Key->Hdr.NumQwords],
@@ -520,10 +519,9 @@ RsaVerifyFromKey (
   Verify RSA PKCS1.5 signed data against its signature.
   The modulus' size must be a multiple of the configured BIGNUM word size.
   This will be true for any conventional RSA, which use two's potencies.
+  The exponent is always 65537 as per the format specification.
 
-  @param[in] Modulus        The RSA modulus byte array.
-  @param[in] ModulusSize    The size, in bytes, of Modulus.
-  @param[in] Exponent       The RSA exponent.
+  @param[in] Key            The RSA Public Key.
   @param[in] Signature      The RSA signature to be verified.
   @param[in] SignatureSize  Size, in bytes, of Signature.
   @param[in] Data           The signed data to verify.
@@ -534,13 +532,13 @@ RsaVerifyFromKey (
 
 **/
 BOOLEAN
-VerifySignatureFromKey (
-  IN CONST RSA_PUBLIC_KEY  *Key,
-  IN CONST UINT8           *Signature,
-  IN UINTN                 SignatureSize,
-  IN CONST UINT8           *Data,
-  IN UINTN                 DataSize,
-  IN OC_RSA_ALGO_TYPE      Algorithm
+RsaVerifySigDataFromKey (
+  IN CONST OC_RSA_PUBLIC_KEY  *Key,
+  IN CONST UINT8              *Signature,
+  IN UINTN                    SignatureSize,
+  IN CONST UINT8              *Data,
+  IN UINTN                    DataSize,
+  IN OC_SIG_HASH_TYPE         Algorithm
   )
 {
   ASSERT (Key != NULL);
@@ -557,7 +555,7 @@ VerifySignatureFromKey (
   // When OC_BN_WORD is not UINT64, this violates the strict aliasing rule.
   // However, due to packed-ness and byte order, this is perfectly safe.
   //
-  return VerifySignatureFromProcessed (
+  return RsaVerifySigDataFromProcessed (
            (OC_BN_WORD *)Key->Data,
            (OC_BN_WORD)Key->Hdr.N0Inv,
            (OC_BN_WORD *)&Key->Data[Key->Hdr.NumQwords],

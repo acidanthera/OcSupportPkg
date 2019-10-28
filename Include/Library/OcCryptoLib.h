@@ -144,12 +144,12 @@ typedef struct {
 // Possible RSA algorithm types supported by OcCryptoLib
 // for RSA digital signature verification
 //
-typedef enum OC_RSA_ALGO_TYPE_ {
-  RSA_ALGO_TYPE_SHA256,
-  RSA_ALGO_TYPE_SHA384, 
-  RSA_ALGO_TYPE_SHA512,
-  RSA_ALGO_TYPE_MAX
-} OC_RSA_ALGO_TYPE;
+typedef enum OC_SIG_HASH_TYPE_ {
+  OcSigHashTypeSha256,
+  OcSigHashTypeSha384, 
+  OcSigHashTypeSha512,
+  OcSigHashTypeMax
+} OC_SIG_HASH_TYPE;
 
 typedef struct AES_CONTEXT_ {
   UINT8 RoundKey[AES_KEY_EXP_SIZE];
@@ -189,6 +189,10 @@ typedef SHA512_CONTEXT SHA384_CONTEXT;
 
 #pragma pack(push, 1)
 
+///
+/// The structure describing the RSA Public Key format.
+/// The exponent is always 65537.
+///
 typedef PACKED struct {
   ///
   /// The number of 64-bit values in Data.
@@ -202,18 +206,18 @@ typedef PACKED struct {
   /// The Montgomery Inverse in 64-bit space: -1 / N[0] mod 2^64.
   ///
   UINT64 N0Inv;
-} RSA_PUBLIC_KEY_HDR;
+} OC_RSA_PUBLIC_KEY_HDR;
 
 typedef PACKED struct {
   ///
   /// The RSA Public Key header structure.
   ///
-  RSA_PUBLIC_KEY_HDR Hdr;
+  OC_RSA_PUBLIC_KEY_HDR Hdr;
   ///
   /// The Modulus and Montgomery's R^2 mod N in little endian byte order.
   ///
-  UINT64             Data[];
-} RSA_PUBLIC_KEY;
+  UINT64                Data[];
+} OC_RSA_PUBLIC_KEY;
 
 #pragma pack(pop)
 
@@ -395,10 +399,9 @@ Sha384 (
 
 /**
   Verify a RSA PKCS1.5 signature against an expected hash.
+  The exponent is always 65537 as per the format specification.
 
-  @param[in] Modulus        The RSA modulus byte array.
-  @param[in] ModulusSize    The size, in bytes, of Modulus.
-  @param[in] Exponent       The RSA exponent.
+  @param[in] Key            The RSA Public Key.
   @param[in] Signature      The RSA signature to be verified.
   @param[in] SignatureSize  Size, in bytes, of Signature.
   @param[in] Hash           The Hash digest of the signed data.
@@ -409,13 +412,13 @@ Sha384 (
 
 **/
 BOOLEAN
-RsaVerifyFromKey (
-  IN CONST RSA_PUBLIC_KEY  *Key,
-  IN CONST UINT8           *Signature,
-  IN UINTN                 SignatureSize,
-  IN CONST UINT8           *Hash,
-  IN UINTN                 HashSize,
-  IN OC_RSA_ALGO_TYPE      Algorithm
+RsaVerifySigHashFromKey (
+  IN CONST OC_RSA_PUBLIC_KEY  *Key,
+  IN CONST UINT8              *Signature,
+  IN UINTN                    SignatureSize,
+  IN CONST UINT8              *Hash,
+  IN UINTN                    HashSize,
+  IN OC_SIG_HASH_TYPE         Algorithm
   );
 
 /**
@@ -436,7 +439,7 @@ RsaVerifyFromKey (
 
 **/
 BOOLEAN
-VerifySignatureFromProcessed (
+RsaVerifySigDataFromProcessed (
   IN CONST OC_BN_WORD  *N,
   IN OC_BN_WORD        N0Inv,
   IN CONST OC_BN_WORD  *RSqrMod,
@@ -446,7 +449,7 @@ VerifySignatureFromProcessed (
   IN UINTN             SignatureSize,
   IN CONST UINT8       *Data,
   IN UINTN             DataSize,
-  IN OC_RSA_ALGO_TYPE  Algorithm
+  IN OC_SIG_HASH_TYPE  Algorithm
   );
 
 /**
@@ -467,7 +470,7 @@ VerifySignatureFromProcessed (
 
 **/
 BOOLEAN
-VerifySignatureFromData (
+RsaVerifySigDataFromData (
   IN CONST UINT8       *Modulus,
   IN UINTN             ModulusSize,
   IN UINT32            Exponent,
@@ -475,17 +478,16 @@ VerifySignatureFromData (
   IN UINTN             SignatureSize,
   IN CONST UINT8       *Data,
   IN UINTN             DataSize,
-  IN OC_RSA_ALGO_TYPE  Algorithm
+  IN OC_SIG_HASH_TYPE  Algorithm
   );
 
 /**
   Verify RSA PKCS1.5 signed data against its signature.
   The modulus' size must be a multiple of the configured BIGNUM word size.
   This will be true for any conventional RSA, which use two's potencies.
+  The exponent is always 65537 as per the format specification.
 
-  @param[in] Modulus        The RSA modulus byte array.
-  @param[in] ModulusSize    The size, in bytes, of Modulus.
-  @param[in] Exponent       The RSA exponent.
+  @param[in] Key            The RSA Public Key.
   @param[in] Signature      The RSA signature to be verified.
   @param[in] SignatureSize  Size, in bytes, of Signature.
   @param[in] Data           The signed data to verify.
@@ -496,13 +498,13 @@ VerifySignatureFromData (
 
 **/
 BOOLEAN
-VerifySignatureFromKey (
-  IN CONST RSA_PUBLIC_KEY  *Key,
-  IN CONST UINT8           *Signature,
-  IN UINTN                 SignatureSize,
-  IN CONST UINT8           *Data,
-  IN UINTN                 DataSize,
-  IN OC_RSA_ALGO_TYPE      Algorithm
+RsaVerifySigDataFromKey (
+  IN CONST OC_RSA_PUBLIC_KEY  *Key,
+  IN CONST UINT8              *Signature,
+  IN UINTN                    SignatureSize,
+  IN CONST UINT8              *Data,
+  IN UINTN                    DataSize,
+  IN OC_SIG_HASH_TYPE         Algorithm
   );
 
 /**
