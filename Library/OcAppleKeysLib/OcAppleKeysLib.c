@@ -18,7 +18,12 @@
 
 #pragma pack(push, 1)
 
-typedef struct {
+///
+/// The data size of a 2048 Bits RSA Public Key. Includes N and R^2 mod N.
+///
+#define OC_RSA_PK_2048_NUM_BYTES  (2 * (2048 / 8))
+
+typedef PACKED struct {
   ///
   /// RSA Public Key header structure.
   ///
@@ -27,10 +32,10 @@ typedef struct {
   /// The Modulus and Montgomery's R^2 mod N in little endian byte order.
   ///
   union {
-    UINT8               Bytes[512];
-    UINT64              Qwords[32];
+    UINT8               Bytes[OC_RSA_PK_2048_NUM_BYTES];
+    UINT64              Qwords[OC_RSA_PK_2048_NUM_BYTES / 8];
   }                     Data;
-} RSA_PUBLIC_KEY_2048;
+} OC_RSA_PUBLIC_KEY_2048;
 
 #pragma pack(pop)
 
@@ -39,11 +44,11 @@ typedef struct {
 // (N and R^2 mod N).
 //
 OC_STATIC_ASSERT (
-  sizeof (RSA_PUBLIC_KEY_2048) == sizeof (OC_RSA_PUBLIC_KEY_HDR) + 2 * (2048 / 8),
+  sizeof (OC_RSA_PUBLIC_KEY_2048) == sizeof (OC_RSA_PUBLIC_KEY_HDR) + OC_RSA_PK_2048_NUM_BYTES,
   "The 2048-bit RSA PK struct is malformed."
   );
 
-STATIC CONST RSA_PUBLIC_KEY_2048 mPkDb1 = {
+STATIC CONST OC_RSA_PUBLIC_KEY_2048 mPkDb1 = {
   { 32, { 0 }, 0xb9a584a4e7cd16d1 },
   /**
     CFFD3E6B FE66EC75 F44B7E2E 0ED26398 08A98D10 AC378E55
@@ -114,7 +119,7 @@ STATIC CONST RSA_PUBLIC_KEY_2048 mPkDb1 = {
   }
 };
 
-STATIC CONST RSA_PUBLIC_KEY_2048 mPkDb2 = {
+STATIC CONST OC_RSA_PUBLIC_KEY_2048 mPkDb2 = {
   { 32, { 0 }, 0x646a020e9ed45d13 },
   /**
     E50AC288 2D44B7E3 3B67C51D AC639329 DA0363BD EAB5179F
