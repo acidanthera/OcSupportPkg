@@ -243,7 +243,7 @@ AppleImg4Verify (
 
   DERImg4Environment  EnvInfo;
   DERImg4ManifestInfo ManInfo;
-  UINT8              ImageDigest[OC_MAX_SHA_DIGEST_SIZE];
+  UINT8               ImageDigest[OC_MAX_SHA_DIGEST_SIZE];
 
   if ((ImageBuffer    == NULL || ImageSize    == 0)
    || (ManifestBuffer == NULL || ManifestSize == 0)
@@ -263,6 +263,12 @@ AppleImg4Verify (
   if (DerResult != DR_Success) {
     return EFI_SECURITY_VIOLATION;
   }
+  //
+  // As ManInfo.imageDigest is a buffer of static size, the bounds check to
+  // retrieve it acts as implicit sanitizing of ManInfo.imageDigestSize which
+  // can be considered trusted at this point.
+  //
+  ASSERT (ManInfo.imageDigestSize <= sizeof (ImageDigest));
 
   if (ManInfo.imageDigestSize == SHA512_DIGEST_SIZE) {
     Sha512 (ImageDigest, ImageBuffer, ImageSize);
