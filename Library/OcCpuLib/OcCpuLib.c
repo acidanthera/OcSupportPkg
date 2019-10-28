@@ -1008,7 +1008,7 @@ ScanIntelProcessor (
   // the information we want outside the function, skip anyway.
   // Things may be different in other hypervisors, but should work with QEMU/VMWare for now.
   //
-  if (Cpu->CPUFrequencyFromVMT == 0){
+  if (Cpu->CPUFrequencyFromVMT == 0) {
     //
     // TODO: this may not be accurate on some older processors.
     //
@@ -1190,7 +1190,7 @@ ScanAmdProcessor (
   //           both the operating and the nominal frequency, latter for
   //           the invariant TSC.
   //
-  if (Cpu->CPUFrequencyFromVMT == 0){
+  if (Cpu->CPUFrequencyFromVMT == 0) {
     Cpu->CPUFrequencyFromTSC = OcCalculateTSCFromPMTimer (Recalculate);
     Cpu->CPUFrequency = Cpu->CPUFrequencyFromTSC;
   }
@@ -1207,11 +1207,17 @@ ScanAmdProcessor (
 
     switch (Cpu->ExtFamily) {
       case AMD_CPU_EXT_FAMILY_17H:
-        if (Cpu->CPUFrequencyFromVMT == 0){
+        if (Cpu->CPUFrequencyFromVMT == 0) {
           CofVid           = AsmReadMsr64 (K10_PSTATE_STATUS);
           CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 7);
           CoreDivisorID    = BitFieldRead64 (CofVid, 8, 13);
-          Cpu->MaxBusRatio = (UINT8) (CoreFrequencyID / CoreDivisorID * 2);
+          if (CoreDivisorID > 0ULL) {
+            //
+            // Sometimes incorrect hypervisor configuration will lead to dividing by zero,
+            // but these variables will not be used under hypervisor, so just skip these.
+            //
+            Cpu->MaxBusRatio = (UINT8) (CoreFrequencyID / CoreDivisorID * 2);
+          }
         }
         //
         // Get core count from CPUID
@@ -1227,7 +1233,7 @@ ScanAmdProcessor (
         break;
       case AMD_CPU_EXT_FAMILY_15H:
       case AMD_CPU_EXT_FAMILY_16H:
-        if (Cpu->CPUFrequencyFromVMT == 0){
+        if (Cpu->CPUFrequencyFromVMT == 0) {
           // FIXME: Please refer to FIXME(1) for the MSR used here.
           CofVid           = AsmReadMsr64 (K10_COFVID_STATUS);
           CoreFrequencyID  = BitFieldRead64 (CofVid, 0, 5);
@@ -1238,7 +1244,13 @@ ScanAmdProcessor (
           // Core current operating frequency in MHz. CoreCOF = 100 *
           // (MSRC001_00[6B:64][CpuFid] + 10h) / (2 ^ MSRC001_00[6B:64][CpuDid]).
           //
-          Cpu->MaxBusRatio = (UINT8)((CoreFrequencyID + 0x10) / Divisor);
+          if (Divisor > 0ULL) {
+            //
+            // Sometimes incorrect hypervisor configuration will lead to dividing by zero,
+            // but these variables will not be used under hypervisor, so just skip these.
+            //
+            Cpu->MaxBusRatio = (UINT8)((CoreFrequencyID + 0x10) / Divisor);
+          }
         }
         //
         // AMD 15h and 16h CPUs don't support hyperthreading,
@@ -1264,10 +1276,18 @@ ScanAmdProcessor (
     //
     if (Cpu->CPUFrequencyFromVMT == 0) { 
       //
+      // Sometimes incorrect hypervisor configuration will lead to dividing by zero.
+      //
+      if (Cpu->MaxBusRatio == 0) {
+        Cpu->FSBFrequency = 100000000; // 100 Mhz like Intel part.
+        Cpu->MaxBusRatio = 1; // TODO: Maybe unsafe too, we need more investigation.
+      } else {
+        Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequency, Cpu->MaxBusRatio);
+      }
+      //
       // CPUPM is not supported on AMD, meaning the current
       // and minimum bus ratio are equal to the maximum bus ratio
       //
-      Cpu->FSBFrequency = DivU64x32 (Cpu->CPUFrequency, Cpu->MaxBusRatio);
       Cpu->CurBusRatio = Cpu->MaxBusRatio;
       Cpu->MinBusRatio = Cpu->MaxBusRatio;
     }
@@ -1418,11 +1438,11 @@ OcCpuScanProcessor (
   //  2. [Qemu-devel] [PATCH v2 0/3] x86-kvm: Fix Mac guest timekeeping by exposi: https://lists.gnu.org/archive/html/qemu-devel/2017-01/msg04344.html
   //
   AsmCpuid (0x40000000, &CpuidEax, NULL, NULL, NULL);
-  if (Cpu->Hypervisor && (CpuidEax >= 0x40000010)){
+  if (Cpu->Hypervisor && (CpuidEax >= 0x40000010)) {
     DEBUG ((DEBUG_INFO, "OCCPU: Cpu under virtualization, try get TSC/FSB frequency from VMWare Timing\n"));
     AsmCpuid (0x40000010, &CpuidEax, &CpuidEbx, NULL, NULL);
 
-    if (CpuidEax & CpuidEbx){
+    if (CpuidEax & CpuidEbx) {
       //
       // We get kHZ from node and we should translate it first.
       //
