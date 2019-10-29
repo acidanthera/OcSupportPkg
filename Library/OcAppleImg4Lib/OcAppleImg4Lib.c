@@ -297,17 +297,17 @@ AppleImg4Verify (
     }
   }
 
-  if (ManInfo.environment.boardId                != EnvInfo.boardId
-   || ManInfo.environment.chipId                 != EnvInfo.chipId
-   || ManInfo.environment.certificateEpoch        < EnvInfo.certificateEpoch
-   || ManInfo.environment.productionStatus        < EnvInfo.productionStatus
-   || ManInfo.environment.securityMode            < EnvInfo.securityMode
-   || ManInfo.environment.securityDomain         != EnvInfo.securityDomain
+  if (ManInfo.environment.boardId                    != EnvInfo.boardId
+   || ManInfo.environment.chipId                     != EnvInfo.chipId
+   || ManInfo.environment.certificateEpoch            < EnvInfo.certificateEpoch
+   || ManInfo.environment.productionStatus            < EnvInfo.productionStatus
+   || ManInfo.environment.securityMode                < EnvInfo.securityMode
+   || ManInfo.environment.securityDomain             != EnvInfo.securityDomain
    || CompareMem (ManInfo.imageDigest, ImageDigest, ManInfo.imageDigestSize) != 0
    || (ManInfo.hasEffectiveProductionStatus
-    && ManInfo.environment.productionStatus      != EnvInfo.effectiveProductionStatus)
+    && ManInfo.environment.effectiveProductionStatus != EnvInfo.effectiveProductionStatus)
    || (ManInfo.hasEffectiveSecurityMode
-    && ManInfo.environment.effectiveSecurityMode != EnvInfo.effectiveSecurityMode)
+    && ManInfo.environment.effectiveSecurityMode     != EnvInfo.effectiveSecurityMode)
     ) {
     return EFI_SECURITY_VIOLATION;
   }
