@@ -83,7 +83,7 @@ InternalRetrieveHwInfo (
   EFI_STATUS Status;
   UINTN      DataSize;
   //
-  // TODO: We probably want an internal structure to collect and store these.
+  // FIXME: Retrieve these values from trusted storage and expose the variables.
   //
   ASSERT (Environment != NULL);
 
