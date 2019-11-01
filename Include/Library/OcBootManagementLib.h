@@ -332,6 +332,7 @@ typedef enum {
   OcPickerResetNvram        = 2,
   OcPickerBootApple         = 3,
   OcPickerBootAppleRecovery = 4,
+  OcPickerBootWindows       = 5
 } OC_PICKER_CMD;
 
 /**

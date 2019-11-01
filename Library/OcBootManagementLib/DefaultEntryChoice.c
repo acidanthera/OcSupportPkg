@@ -761,6 +761,16 @@ OcGetDefaultBootEntry (
         }
       }
     }
+  } else if (Context->PickerCommand == OcPickerBootWindows) {
+    if (BootEntries[BootEntryIndex].Type != OcBootWindows) {
+      for (Index = 0; Index < NumBootEntries; ++Index) {
+        if (BootEntries[Index].Type == OcBootWindows) {
+          BootEntryIndex = (UINT32) Index;
+          DEBUG ((DEBUG_INFO, "OCB: Override default option to Windows %u\n", BootEntryIndex));
+          break;
+        }
+      }
+    }
   }
 
   return BootEntryIndex;
