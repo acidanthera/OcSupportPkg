@@ -589,10 +589,7 @@ BigNumDataPowMod (
   IN     OC_BN_NUM_WORDS   NumWords
   )
 {
-  UINTN      TempsBnSize;
-  VOID       *Memory;
-  OC_BN_WORD *ATmp1;
-  OC_BN_WORD *ATmp2;
+  OC_BN_WORD *ATmp;
 
   UINTN      Index;
 
@@ -609,20 +606,16 @@ BigNumDataPowMod (
     return FALSE;
   }
 
-  TempsBnSize = (UINTN)NumWords * OC_BN_WORD_SIZE;
-  Memory      = AllocatePool (2 * TempsBnSize);
-  if (Memory == NULL) {
+  ATmp = AllocatePool ((UINTN)NumWords * OC_BN_WORD_SIZE);
+  if (ATmp == NULL) {
     DEBUG ((DEBUG_INFO, "OCCR: Memory allocation failure in ModPow\n"));
     return FALSE;
   }
-
-  ATmp1 = Memory;
-  ATmp2 = (OC_BN_WORD *)((UINTN)ATmp1 + TempsBnSize);
   //
   // Convert A into the Montgomery Domain.
-  // ATmp1 = MM (A, R^2 mod N)
+  // ATmp = MM (A, R^2 mod N)
   //
-  BigNumDataMontMul (ATmp1, A, RSqrMod, N, N0Inv, NumWords);
+  BigNumDataMontMul (ATmp, A, RSqrMod, N, N0Inv, NumWords);
 
   if (B == 0x10001) {
     //
@@ -630,41 +623,41 @@ BigNumDataPowMod (
     //
     for (Index = 0; Index < 16; Index += 2) {
       //
-      // ATmp2 = MM (ATmp1, ATmp1)
+      // Result = MM (ATmp, ATmp)
       //
-      BigNumDataMontMul (ATmp2, ATmp1, ATmp1, N, N0Inv, NumWords);
+      BigNumDataMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
       //
-      // ATmp1 = MM (ATmp2, ATmp2)
+      // ATmp = MM (Result, Result)
       //
-      BigNumDataMontMul (ATmp1, ATmp2, ATmp2, N, N0Inv, NumWords);
+      BigNumDataMontMul (ATmp, Result, Result, N, N0Inv, NumWords);
     }
     //
     // Because A is not within the Montgomery Domain, this implies another
     // division by R, which takes the result out of the Montgomery Domain.
-    // C = MM (ATmp1, A)
+    // C = MM (ATmp, A)
     //
-    BigNumDataMontMul (Result, ATmp1, A, N, N0Inv, NumWords);
+    BigNumDataMontMul (Result, ATmp, A, N, N0Inv, NumWords);
   } else {
     //
-    // ATmp2 = MM (ATmp1, ATmp1)
+    // Result = MM (ATmp, ATmp)
     //
-    BigNumDataMontMul (ATmp2, ATmp1, ATmp1, N, N0Inv, NumWords);
+    BigNumDataMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
     //
-    // ATmp1 = MM (ATmp2, ATmp1)
+    // ATmp = MM (Result, ATmp)
     //
-    BigNumDataMontMul (ATmp1, ATmp2, ATmp1, N, N0Inv, NumWords);
+    BigNumDataMontMul (ATmp, Result, ATmp, N, N0Inv, NumWords);
     //
     // Perform a Montgomery Multiplication with 1, which effectively is a
     // division by R, taking the result out of the Montgomery Domain.
-    // C = MM (ATmp1, 1)
+    // C = MM (ATmp, 1)
     // TODO: Is this needed or can we just multiply with A above?
     //
-    BigNumDataMontMul1 (Result, ATmp1, N, N0Inv, NumWords);
+    BigNumDataMontMul1 (Result, ATmp, N, N0Inv, NumWords);
   }
   //
   // The Montgomery Multiplications above only ensure the result is mod N when
-  // it does not fit within #Bits (N). For N != 0, which is an obvious
-  // requirement, #Bits (N) can only ever fit values smaller than 2*N, so the
+  // it does not fit within #Bits(N). For N != 0, which is an obvious
+  // requirement, #Bits(N) can only ever fit values smaller than 2*N, so the
   // result is at most one modulus too large.
   // C = C mod N
   //
@@ -672,6 +665,6 @@ BigNumDataPowMod (
     BigNumDataSub (Result, Result, N, NumWords);
   }
 
-  FreePool (Memory);
+  FreePool (ATmp);
   return TRUE;
 }
