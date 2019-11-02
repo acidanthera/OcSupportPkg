@@ -602,7 +602,7 @@ BigNumDataPowMod (
   // Currently, only the most frequent exponents are supported.
   //
   if (B != 0x10001 && B != 3) {
-    ASSERT (FALSE);
+    DEBUG ((DEBUG_INFO, "OCCR: Unsupported exponent: %x\n", B));
     return FALSE;
   }
 
