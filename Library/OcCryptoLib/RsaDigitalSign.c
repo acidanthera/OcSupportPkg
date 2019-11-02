@@ -49,6 +49,64 @@ STATIC CONST UINT8 mPkcsDigestEncodingPrefixSha512[] = {
 };
 
 /**
+  Verifies Data against Hash with the appropiate SHA2 algorithm for HashSize.
+
+  @param[in] Data      The data to verify the hash of.
+  @param[in] DataSize  The, in bytes, of Data.
+  @param[in] Hash      The reference hash to verify against.
+  @param[in] HashSize  The size, in bytes, of Hash.
+
+  @return 0         All HashSize bytes of the two buffers are identical.
+  @retval Non-zero  If HashSize is not a valid SHA2 digest size, -1. Otherwise,
+                    the first mismatched byte in Data's hash subtracted from
+                    the first mismatched byte in Hash.
+
+**/
+INTN
+SigVerifyShaHashBySize (
+  IN CONST VOID   *Data,
+  IN UINTN        DataSize,
+  IN CONST UINT8  *Hash,
+  IN UINTN        HashSize
+  )
+{
+  UINT8 DataDigest[OC_MAX_SHA_DIGEST_SIZE];
+
+  ASSERT (Data != NULL);
+  ASSERT (DataSize > 0);
+  ASSERT (Hash != NULL);
+  ASSERT (HashSize > 0);
+  ASSERT (HashSize <= sizeof (DataDigest));
+
+  switch (HashSize) {
+    case SHA512_DIGEST_SIZE:
+    {
+      Sha512 (DataDigest, Data, DataSize);
+      break;
+    }
+
+    case SHA384_DIGEST_SIZE:
+    {
+      Sha384 (DataDigest, Data, DataSize);
+      break;
+    }
+
+    case SHA256_DIGEST_SIZE:
+    {
+      Sha256 (DataDigest, Data, DataSize);
+      break;
+    }
+
+    default:
+    {
+      return -1;
+    }
+  }
+
+  return CompareMem (DataDigest, Hash, HashSize);
+}
+
+/**
   Verify a RSA PKCS1.5 signature against an expected hash.
 
   @param[in] N              The RSA modulus.
@@ -115,9 +173,7 @@ RsaVerifySigHashFromProcessed (
   switch (Algorithm) {
     case OcSigHashTypeSha256:
     {
-      if (HashSize != SHA256_DIGEST_SIZE) {
-        return FALSE;
-      }
+      ASSERT (HashSize == SHA256_DIGEST_SIZE);
 
       Padding     = mPkcsDigestEncodingPrefixSha256;
       PaddingSize = sizeof (mPkcsDigestEncodingPrefixSha256);
@@ -126,9 +182,7 @@ RsaVerifySigHashFromProcessed (
 
     case OcSigHashTypeSha384:
     {
-      if (HashSize != SHA384_DIGEST_SIZE) {
-        return FALSE;
-      }
+      ASSERT (HashSize == SHA384_DIGEST_SIZE);
 
       Padding     = mPkcsDigestEncodingPrefixSha384;
       PaddingSize = sizeof (mPkcsDigestEncodingPrefixSha384);
@@ -137,9 +191,7 @@ RsaVerifySigHashFromProcessed (
 
     case OcSigHashTypeSha512:
     {
-      if (HashSize != SHA512_DIGEST_SIZE) {
-        return FALSE;
-      }
+      ASSERT (HashSize == SHA512_DIGEST_SIZE);
 
       Padding     = mPkcsDigestEncodingPrefixSha512;
       PaddingSize = sizeof (mPkcsDigestEncodingPrefixSha512);

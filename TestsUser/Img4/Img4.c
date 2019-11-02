@@ -69,7 +69,6 @@ int verifyImg4 (char *imageName, char *manifestName, char *type)
   void *Manifest, *Image;
   uint32_t ManSize, ImgSize;
   DERImg4ManifestInfo ManInfo;
-  uint8_t ImageDig[OC_MAX_SHA_DIGEST_SIZE];
 
   Manifest = readFile (manifestName, &ManSize);
   if (Manifest == NULL) {
@@ -97,21 +96,16 @@ int verifyImg4 (char *imageName, char *manifestName, char *type)
     return -1;
   }
 
-  if (ManInfo.imageDigestSize == SHA512_DIGEST_SIZE) {
-    Sha512 (ImageDig, Image, ImgSize);
-  } else if (ManInfo.imageDigestSize == SHA384_DIGEST_SIZE) {
-    Sha384 (ImageDig, Image, ImgSize);
-  } else if (ManInfo.imageDigestSize == SHA256_DIGEST_SIZE) {
-    Sha256 (ImageDig, Image, ImgSize);
-  } else {
-    free (Image);
-    printf ("\n!!! digest unsupported !!!\n");
-    return -1;
-  }
+  INTN CmpResult = SigVerifyShaHashBySize (
+                     Image,
+                     ImgSize,
+                     ManInfo.imageDigest,
+                     ManInfo.imageDigestSize
+                     );
 
   free (Image);
 
-  if (memcmp (ImageDig, ManInfo.imageDigest, ManInfo.imageDigestSize) != 0) {
+  if (CmpResult != 0) {
     printf ("\n!!! digest mismatch !!!\n");
     return -1;
   }

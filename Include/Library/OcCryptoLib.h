@@ -398,6 +398,28 @@ Sha384 (
   );
 
 /**
+  Verifies Data against Hash with the appropiate SHA2 algorithm for HashSize.
+
+  @param[in] Data      The data to verify the hash of.
+  @param[in] DataSize  The, in bytes, of Data.
+  @param[in] Hash      The reference hash to verify against.
+  @param[in] HashSize  The size, in bytes, of Hash.
+
+  @return 0         All HashSize bytes of the two buffers are identical.
+  @retval Non-zero  If HashSize is not a valid SHA2 digest size, -1. Otherwise,
+                    the first mismatched byte in Data's hash subtracted from
+                    the first mismatched byte in Hash.
+
+**/
+INTN
+SigVerifyShaHashBySize (
+  IN CONST VOID   *Data,
+  IN UINTN        DataSize,
+  IN CONST UINT8  *Hash,
+  IN UINTN        HashSize
+  );
+
+/**
   Verify a RSA PKCS1.5 signature against an expected hash.
   The exponent is always 65537 as per the format specification.
 

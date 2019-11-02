@@ -239,11 +239,11 @@ AppleImg4Verify (
   OUT UINTN                             *DigestSize OPTIONAL
   )
 {
-  DERReturn          DerResult;
+  DERReturn           DerResult;
+  INTN                CmpResult;
 
   DERImg4Environment  EnvInfo;
   DERImg4ManifestInfo ManInfo;
-  UINT8               ImageDigest[OC_MAX_SHA_DIGEST_SIZE];
 
   if ((ImageBuffer    == NULL || ImageSize    == 0)
    || (ManifestBuffer == NULL || ManifestSize == 0)
@@ -268,15 +268,13 @@ AppleImg4Verify (
   // retrieve it acts as implicit sanitizing of ManInfo.imageDigestSize which
   // can be considered trusted at this point.
   //
-  ASSERT (ManInfo.imageDigestSize <= sizeof (ImageDigest));
-
-  if (ManInfo.imageDigestSize == SHA512_DIGEST_SIZE) {
-    Sha512 (ImageDigest, ImageBuffer, ImageSize);
-  } else if (ManInfo.imageDigestSize == SHA384_DIGEST_SIZE) {
-    Sha384 (ImageDigest, ImageBuffer, ImageSize);
-  } else if (ManInfo.imageDigestSize == SHA256_DIGEST_SIZE) {
-    Sha256 (ImageDigest, ImageBuffer, ImageSize);
-  } else {
+  CmpResult = SigVerifyShaHashBySize (
+                ImageBuffer,
+                ImageSize,
+                ManInfo.imageDigest,
+                ManInfo.imageDigestSize
+                );
+  if (CmpResult != 0) {
     return EFI_SECURITY_VIOLATION;
   }
 
@@ -303,7 +301,6 @@ AppleImg4Verify (
    || (ManInfo.environment.productionStatus           != EnvInfo.productionStatus && !ManInfo.environment.productionStatus)
    || (ManInfo.environment.securityMode               != EnvInfo.securityMode && !ManInfo.environment.securityMode)
    || (ManInfo.environment.securityDomain             != EnvInfo.securityDomain)
-   || (CompareMem (ManInfo.imageDigest, ImageDigest, ManInfo.imageDigestSize) != 0)
    || (ManInfo.hasEffectiveProductionStatus
     && (ManInfo.environment.effectiveProductionStatus != EnvInfo.effectiveProductionStatus && !ManInfo.environment.effectiveProductionStatus))
    || (ManInfo.hasEffectiveSecurityMode
@@ -313,7 +310,7 @@ AppleImg4Verify (
   }
 
   if (HashDigest != NULL) {
-    *HashDigest = AllocateCopyPool (ManInfo.imageDigestSize, ImageDigest);
+    *HashDigest = AllocateCopyPool (ManInfo.imageDigestSize, ManInfo.imageDigest);
     if (*HashDigest == NULL) {
       return EFI_OUT_OF_RESOURCES;
     }
