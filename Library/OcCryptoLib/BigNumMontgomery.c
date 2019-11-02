@@ -35,6 +35,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/OcCryptoLib.h>
+#include <Library/OcMiscLib.h>
 
 #include "BigNumLibInternal.h"
 
@@ -82,7 +83,7 @@ BigNumMontInverse (
   //
   // === INITIALISATION ===
   //
-  // Divisor  = 1U << sizeof(A->Words[0]) * 8;
+  // Divisor  = 1U << sizeof(A->Words[0]) * OC_CHAR_BIT;
   // Dividend = A->Words[0];
   //
   // Y = 1;
@@ -194,14 +195,18 @@ BigNumCalculateMontParams (
   NumBits = BigNumSignificantBits (N);
 
   OC_STATIC_ASSERT (
-    OC_BN_MAX_SIZE * 8 <= (MAX_UINTN / 2) - 2 - 7,
+    OC_BN_MAX_SIZE * OC_CHAR_BIT <= ((MAX_UINTN - 1) / 2) - (OC_CHAR_BIT - 1),
     "An overflow verification must be added"
     );
   //
-  // Considering NumBits can at most be MAX_UINT16 * 8, this cannot overflow.
-  // 7 is added to achieve rounding towards the next Byte boundary.
+  // Considering NumBits can at most be MAX_UINT16 * OC_CHAR_BIT, this cannot
+  // overflow. OC_CHAR_BIT-1 is added to achieve rounding towards the next Byte
+  // boundary.
   //
-  Size = ALIGN_VALUE (((2 * (NumBits + 1) + 7) / 8), OC_BN_WORD_SIZE);
+  Size = ALIGN_VALUE (
+           ((2 * (NumBits + 1) + (OC_CHAR_BIT - 1)) / OC_CHAR_BIT),
+           OC_BN_WORD_SIZE
+           );
   if (Size > OC_BN_MAX_SIZE) {
     return 0;
   }
