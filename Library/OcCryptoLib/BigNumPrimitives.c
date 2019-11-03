@@ -215,10 +215,22 @@ BigNumRightShiftBitsSmall (
   A->Words[Index] >>= Exponent;
 }
 
-#if defined(_MSC_VER) && !defined(__clang__)
-  #include <intrin.h>
-  #pragma intrinsic(_umul128)
-#endif
+/**
+  Calculates the product of A and B.
+
+  @param[out] Hi  Buffer in which the high Word of the result is returned.
+  @param[in]  A   The multiplicant.
+  @param[in]  B   The multiplier.
+
+  @returns  The low Word of the result.
+
+**/
+OC_BN_WORD
+BigNumWordMul64 (
+  OUT OC_BN_WORD  *Hi,
+  IN  OC_BN_WORD  A,
+  IN  OC_BN_WORD  B
+  );
 
 /**
   Calculates the product of A and B.
@@ -237,6 +249,8 @@ BigNumWordMul (
   IN  OC_BN_WORD  B
   )
 {
+  UINT64 Result64;
+
   ASSERT (Hi != NULL);
 
   if (OC_BN_WORD_SIZE == sizeof (UINT32)) {
@@ -244,59 +258,12 @@ BigNumWordMul (
     //
     // FIXME: The subtraction in the shift is a dirty hack to shut up MSVC.
     //
-    *Hi = (OC_BN_WORD)(Result >> (OC_BN_WORD_NUM_BITS - (OC_BN_WORD_SIZE != 4)));
-    return (OC_BN_WORD)Result;
-  } else if (OC_BN_WORD_SIZE == 8) {
-  #if !defined(_MSC_VER) || defined(__clang__)
-    //
-    // Clang and GCC support the __int128 type for edk2 builds.
-    //
-    unsigned __int128 Result = (unsigned __int128)A * B;
-    *Hi = (OC_BN_WORD)(Result >> OC_BN_WORD_NUM_BITS);
-    return (OC_BN_WORD)Result;
-  #else
-    //
-    // MSVC does not support the __int128 type for edk2 builds.
-    //
-    return _umul128 (A, B, Hi);
-  #endif
-  /*
-    //
-    // This is to be used when the used compiler lacks support for both the
-    // __int128 type and a suiting intrinsic to perform the calculation.
-    //
-    // Source: https://stackoverflow.com/a/31662911
-    //
-    CONST OC_BN_WORD SubWordShift = OC_BN_WORD_NUM_BITS / 2;
-    CONST OC_BN_WORD SubWordMask  = ((OC_BN_WORD)1U << SubWordShift) - 1;
-
-    OC_BN_WORD ALo;
-    OC_BN_WORD AHi;
-    OC_BN_WORD BLo;
-    OC_BN_WORD BHi;
-
-    OC_BN_WORD P0;
-    OC_BN_WORD P1;
-    OC_BN_WORD P2;
-    OC_BN_WORD P3;
-
-    OC_BN_WORD Cy;
-
-    ALo = A & SubWordMask;
-    AHi = A >> SubWordShift;
-    BLo = B & SubWordMask;
-    BHi = B >> SubWordShift;
-
-    P0 = ALo * BLo;
-    P1 = ALo * BHi;
-    P2 = AHi * BLo;
-    P3 = AHi * BHi;
-
-    Cy = (((P0 >> SubWordShift) + (P1 & SubWordMask) + (P2 & SubWordMask)) >> SubWordShift) & SubWordMask;
-
-    *Hi = P3 + (P1 >> SubWordShift) + (P2 >> SubWordShift) + Cy;
-    return P0 + (P1 << SubWordShift) + (P2 << SubWordShift);
-  */
+    *Hi = (OC_BN_WORD)(RShiftU64 (Result64, OC_BN_WORD_NUM_BITS));
+    return (OC_BN_WORD)Result64;
+  }
+  
+  if (OC_BN_WORD_SIZE == sizeof (UINT64)) {
+    return BigNumWordMul64 (Hi, A, B);
   }
 }
 

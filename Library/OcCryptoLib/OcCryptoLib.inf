@@ -25,7 +25,7 @@
 
 
 #
-#  VALID_ARCHITECTURES           = X64
+#  VALID_ARCHITECTURES           = IA32 X64
 #
 
 [Sources]
@@ -40,6 +40,12 @@
   BigNumLibInternal.h
   BigNumPrimitives.c
   BigNumMontgomery.c
+
+[Sources.IA32]
+  IA32/BigNumWordMul64.c
+
+[Sources.X64]
+  IA32/BigNumWordMul64.c
 
 [Packages]
   MdePkg/MdePkg.dec
