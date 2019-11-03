@@ -48,20 +48,6 @@ STATIC CONST UINT8 mPkcsDigestEncodingPrefixSha512[] = {
   0x02, 0x03, 0x05, 0x00, 0x04, 0x40
 };
 
-/**
-  Verifies Data against Hash with the appropiate SHA2 algorithm for HashSize.
-
-  @param[in] Data      The data to verify the hash of.
-  @param[in] DataSize  The, in bytes, of Data.
-  @param[in] Hash      The reference hash to verify against.
-  @param[in] HashSize  The size, in bytes, of Hash.
-
-  @return 0         All HashSize bytes of the two buffers are identical.
-  @retval Non-zero  If HashSize is not a valid SHA2 digest size, -1. Otherwise,
-                    the first mismatched byte in Data's hash subtracted from
-                    the first mismatched byte in Hash.
-
-**/
 INTN
 SigVerifyShaHashBySize (
   IN CONST VOID   *Data,
@@ -123,12 +109,13 @@ SigVerifyShaHashBySize (
   @returns  Whether the signature has been successfully verified as valid.
 
 **/
+STATIC
 BOOLEAN
 RsaVerifySigHashFromProcessed (
   IN CONST OC_BN_WORD  *N,
+  IN UINTN             NumWords,
   IN OC_BN_WORD        N0Inv,
   IN CONST OC_BN_WORD  *RSqrMod,
-  IN UINTN             NumWords,
   IN UINT32            Exponent,
   IN CONST UINT8       *Signature,
   IN UINTN             SignatureSize,
@@ -154,8 +141,8 @@ RsaVerifySigHashFromProcessed (
   OC_BN_WORD  Tmp;
 
   ASSERT (N != NULL);
-  ASSERT (RSqrMod != NULL);
   ASSERT (NumWords > 0);
+  ASSERT (RSqrMod != NULL);
   ASSERT (Signature != NULL);
   ASSERT (SignatureSize > 0);
   ASSERT (Hash != NULL);
@@ -231,12 +218,12 @@ RsaVerifySigHashFromProcessed (
 
   Result = BigNumPowMod (
              DecryptedSigNum,
+             (OC_BN_NUM_WORDS)NumWords,
              EncryptedSigNum,
              Exponent,
              N,
              N0Inv,
-             RSqrMod,
-             (OC_BN_NUM_WORDS)NumWords
+             RSqrMod
              );
   if (!Result) {
     FreePool (Memory);
@@ -326,29 +313,12 @@ RsaVerifySigHashFromProcessed (
   return TRUE;
 }
 
-/**
-  Verify RSA PKCS1.5 signed data against its signature.
-  The modulus' size must be a multiple of the configured BIGNUM word size.
-  This will be true for any conventional RSA, which use two's potencies.
-
-  @param[in] Modulus        The RSA modulus byte array.
-  @param[in] ModulusSize    The size, in bytes, of Modulus.
-  @param[in] Exponent       The RSA exponent.
-  @param[in] Signature      The RSA signature to be verified.
-  @param[in] SignatureSize  Size, in bytes, of Signature.
-  @param[in] Data           The signed data to verify.
-  @param[in] DataSize       Size, in bytes, of Data.
-  @param[in] Algorithm      The RSA algorithm used.
-
-  @returns  Whether the signature has been successfully verified as valid.
-
-**/
 BOOLEAN
 RsaVerifySigDataFromProcessed (
   IN CONST OC_BN_WORD  *N,
+  IN UINTN             NumWords,
   IN OC_BN_WORD        N0Inv,
   IN CONST OC_BN_WORD  *RSqrMod,
-  IN UINTN             NumWords,
   IN UINT32            Exponent,
   IN CONST UINT8       *Signature,
   IN UINTN             SignatureSize,
@@ -361,8 +331,8 @@ RsaVerifySigDataFromProcessed (
   UINTN HashSize;
 
   ASSERT (N != NULL);
-  ASSERT (RSqrMod != NULL);
   ASSERT (NumWords > 0);
+  ASSERT (RSqrMod != NULL);
   ASSERT (Exponent > 0);
   ASSERT (Signature != NULL);
   ASSERT (SignatureSize > 0);
@@ -408,9 +378,9 @@ RsaVerifySigDataFromProcessed (
 
   return RsaVerifySigHashFromProcessed (
            N,
+           NumWords,
            N0Inv,
            RSqrMod,
-           NumWords,
            Exponent,
            Signature,
            SignatureSize,
@@ -420,23 +390,6 @@ RsaVerifySigDataFromProcessed (
            );
 }
 
-/**
-  Verify RSA PKCS1.5 signed data against its signature.
-  The modulus' size must be a multiple of the configured BIGNUM word size.
-  This will be true for any conventional RSA, which use two's potencies.
-
-  @param[in] Modulus        The RSA modulus byte array.
-  @param[in] ModulusSize    The size, in bytes, of Modulus.
-  @param[in] Exponent       The RSA exponent.
-  @param[in] Signature      The RSA signature to be verified.
-  @param[in] SignatureSize  Size, in bytes, of Signature.
-  @param[in] Data           The signed data to verify.
-  @param[in] DataSize       Size, in bytes, of Data.
-  @param[in] Algorithm      The RSA algorithm used.
-
-  @returns  Whether the signature has been successfully verified as valid.
-
-**/
 BOOLEAN
 RsaVerifySigDataFromData (
   IN CONST UINT8       *Modulus,
@@ -487,7 +440,7 @@ RsaVerifySigDataFromData (
 
   BigNumParseBuffer (N, ModulusNumWords, Modulus, ModulusSize);
 
-  N0Inv = BigNumCalculateMontParams (RSqrMod, N, ModulusNumWords);
+  N0Inv = BigNumCalculateMontParams (RSqrMod, ModulusNumWords, N);
   if (N0Inv == 0) {
     FreePool (Memory);
     return FALSE;
@@ -495,9 +448,9 @@ RsaVerifySigDataFromData (
 
   Result = RsaVerifySigDataFromProcessed (
              N,
+             ModulusNumWords,
              N0Inv,
              RSqrMod,
-             ModulusNumWords,
              Exponent,
              Signature,
              SignatureSize,
@@ -510,20 +463,6 @@ RsaVerifySigDataFromData (
   return Result;
 }
 
-/**
-  Verify a RSA PKCS1.5 signature against an expected hash.
-  The exponent is always 65537 as per the format specification.
-
-  @param[in] Key            The RSA Public Key.
-  @param[in] Signature      The RSA signature to be verified.
-  @param[in] SignatureSize  Size, in bytes, of Signature.
-  @param[in] Hash           The Hash digest of the signed data.
-  @param[in] HashSize       Size, in bytes, of Hash.
-  @param[in] Algorithm      The RSA algorithm used.
-
-  @returns  Whether the signature has been successfully verified as valid.
-
-**/
 BOOLEAN
 RsaVerifySigHashFromKey (
   IN CONST OC_RSA_PUBLIC_KEY  *Key,
@@ -550,9 +489,9 @@ RsaVerifySigHashFromKey (
   //
   return RsaVerifySigHashFromProcessed (
            (OC_BN_WORD *)Key->Data,
+           Key->Hdr.NumQwords * (8 / OC_BN_WORD_SIZE),
            (OC_BN_WORD)Key->Hdr.N0Inv,
            (OC_BN_WORD *)&Key->Data[Key->Hdr.NumQwords],
-           Key->Hdr.NumQwords * (8 / OC_BN_WORD_SIZE),
            0x10001,
            Signature,
            SignatureSize,
@@ -562,22 +501,6 @@ RsaVerifySigHashFromKey (
            );
 }
 
-/**
-  Verify RSA PKCS1.5 signed data against its signature.
-  The modulus' size must be a multiple of the configured BIGNUM word size.
-  This will be true for any conventional RSA, which use two's potencies.
-  The exponent is always 65537 as per the format specification.
-
-  @param[in] Key            The RSA Public Key.
-  @param[in] Signature      The RSA signature to be verified.
-  @param[in] SignatureSize  Size, in bytes, of Signature.
-  @param[in] Data           The signed data to verify.
-  @param[in] DataSize       Size, in bytes, of Data.
-  @param[in] Algorithm      The RSA algorithm used.
-
-  @returns  Whether the signature has been successfully verified as valid.
-
-**/
 BOOLEAN
 RsaVerifySigDataFromKey (
   IN CONST OC_RSA_PUBLIC_KEY  *Key,
@@ -604,9 +527,9 @@ RsaVerifySigDataFromKey (
   //
   return RsaVerifySigDataFromProcessed (
            (OC_BN_WORD *)Key->Data,
+           Key->Hdr.NumQwords * (8 / OC_BN_WORD_SIZE),
            (OC_BN_WORD)Key->Hdr.N0Inv,
            (OC_BN_WORD *)&Key->Data[Key->Hdr.NumQwords],
-           Key->Hdr.NumQwords * (8 / OC_BN_WORD_SIZE),
            0x10001,
            Signature,
            SignatureSize,

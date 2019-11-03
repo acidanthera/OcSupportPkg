@@ -642,15 +642,15 @@ BigNumOrWord (
 INTN
 BigNumCmp (
   IN CONST OC_BN_WORD  *A,
-  IN CONST OC_BN_WORD  *B,
-  IN OC_BN_NUM_WORDS   NumWords
+  IN OC_BN_NUM_WORDS   NumWords,
+  IN CONST OC_BN_WORD  *B
   )
 {
   UINTN Index;
 
   ASSERT (A != NULL);
-  ASSERT (B != NULL);
   ASSERT (NumWords > 0);
+  ASSERT (B != NULL);
 
   Index = NumWords;
   do {
@@ -779,7 +779,7 @@ BigNumDiv (
     BigNumAssign (DenomBuf, NumWordsRest, B, NumWordsB);                 // Denom = B
   }
 
-  while (BigNumCmp (DenomBuf, A, NumWordsRest) <= 0) {                   // while (Denom <= a) {
+  while (BigNumCmp (DenomBuf, NumWordsRest, A) <= 0) {                   // while (Denom <= a) {
     if (DenomBuf[NumWordsRest - 1] > (OC_BN_MAX_VAL / 2U)) {
       Overflow = TRUE;
       break;
@@ -798,7 +798,7 @@ BigNumDiv (
   // the comment before.
   //
   while (CurBitIndex != (0ULL - 1ULL)) {                                 // while (Current != 0)
-    if (BigNumCmp (DividendBuf, DenomBuf, NumWordsRest) >= 0) {          //   if (Dividend >= Denom)
+    if (BigNumCmp (DividendBuf, NumWordsRest, DenomBuf) >= 0) {          //   if (Dividend >= Denom)
       BigNumSub (DividendBuf, NumWordsRest, DividendBuf, DenomBuf);      //     Dividend -= denom;            
       BigNumOrWord (Result, NumWordsRest, 1, CurBitIndex);               //     Result |= current;
     }

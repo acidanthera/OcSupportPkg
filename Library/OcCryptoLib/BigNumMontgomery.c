@@ -161,8 +161,8 @@ BigNumMontInverse (
 OC_BN_WORD
 BigNumCalculateMontParams (
   IN OUT OC_BN_WORD        *RSqrMod,
-  IN     CONST OC_BN_WORD  *N,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     OC_BN_NUM_WORDS   NumWords,
+  IN     CONST OC_BN_WORD  *N
   )
 {
   OC_BN_WORD      N0Inv;
@@ -172,8 +172,8 @@ BigNumCalculateMontParams (
   OC_BN_WORD      *RSqr;
 
   ASSERT (RSqrMod != NULL);
-  ASSERT (N != NULL);
   ASSERT (NumWords > 0);
+  ASSERT (N != NULL);
   //
   // Calculate the Montgomery Inverse.
   // This is a reduced approach of the algorithmic -1 / N mod 2^#Bits(N),
@@ -299,22 +299,22 @@ BigNumWordAddMulCarry (
   Calculates a row of the product of A and B mod N.
 
   @param[in,out] Result    The result buffer.
+  @param[in]     NumWords  The number of Words of Result, B and N.
   @param[in]     AWord     The current row's Word of the multiplicant.
   @param[in]     B         The multiplier.
   @param[in]     N         The modulus.
   @param[in]     N0Inv     The Montgomery Inverse of N.
-  @param[in]     NumWords  The number of Words of Result, B and N.
 
 **/
 STATIC
 VOID
 BigNumMontMulRow (
   IN OUT OC_BN_WORD        *Result,
+  IN     OC_BN_NUM_WORDS   NumWords,
   IN     OC_BN_WORD        AWord,
   IN     CONST OC_BN_WORD  *B,
   IN     CONST OC_BN_WORD  *N,
-  IN     OC_BN_WORD        N0Inv,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     OC_BN_WORD        N0Inv
   )
 {
   UINTN      CompIndex;
@@ -326,6 +326,7 @@ BigNumMontMulRow (
   OC_BN_WORD TFirst;
 
   ASSERT (Result != NULL);
+  ASSERT (NumWords > 0);
   ASSERT (B != NULL);
   ASSERT (N != NULL);
   ASSERT (N0Inv != 0);
@@ -405,27 +406,28 @@ BigNumMontMulRow (
   Calculates the Montgomery product of A and B mod N.
 
   @param[in,out] Result    The result buffer.
+  @param[in]     NumWords  The number of Words of Result, A, B and N.
   @param[in]     A         The multiplicant.
   @param[in]     B         The multiplier.
   @param[in]     N         The modulus.
   @param[in]     N0Inv     The Montgomery Inverse of N.
-  @param[in]     NumWords  The number of Words of Result, A, B and N.
 
 **/
 STATIC
 VOID
 BigNumMontMul (
   IN OUT OC_BN_WORD        *Result,
+  IN     OC_BN_NUM_WORDS   NumWords,
   IN     CONST OC_BN_WORD  *A,
   IN     CONST OC_BN_WORD  *B,
   IN     CONST OC_BN_WORD  *N,
-  IN     OC_BN_WORD        N0Inv,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     OC_BN_WORD        N0Inv
   )
 {
   UINTN RowIndex;
 
   ASSERT (Result != NULL);
+  ASSERT (NumWords > 0);
   ASSERT (A != NULL);
   ASSERT (B != NULL);
   ASSERT (N != NULL);
@@ -438,7 +440,7 @@ BigNumMontMul (
   // as the positional factor is stripped by the word-size modulus.
   //
   for (RowIndex = 0; RowIndex < NumWords; ++RowIndex) {
-    BigNumMontMulRow (Result, A[RowIndex], B, N, N0Inv, NumWords);
+    BigNumMontMulRow (Result, NumWords, A[RowIndex], B, N, N0Inv);
   }
   //
   // As this implementation only reduces mod N on overflow and not for every
@@ -454,18 +456,18 @@ BigNumMontMul (
   Calculates a row of the product of 0 and A mod N.
 
   @param[in,out] Result  The result buffer.
+  @param[in]     NumWords  The number of Words of Result and N.
   @param[in]     N       The modulus.
   @param[in]     N0Inv   The Montgomery Inverse of N.
-  @param[in]     NumWords  The number of Words of Result and N.
 
 **/
 STATIC
 VOID
 BigNumMontMulRow0 (
   IN OUT OC_BN_WORD        *Result,
+  IN     OC_BN_NUM_WORDS   NumWords,
   IN     CONST OC_BN_WORD  *N,
-  IN     OC_BN_WORD        N0Inv,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     OC_BN_WORD        N0Inv
   )
 {
   UINTN      CompIndex;
@@ -475,6 +477,7 @@ BigNumMontMulRow0 (
   OC_BN_WORD TFirst;
 
   ASSERT (Result != NULL);
+  ASSERT (NumWords > 0);
   ASSERT (N != NULL);
   ASSERT (N0Inv != 0);
   //
@@ -521,25 +524,26 @@ BigNumMontMulRow0 (
   BigNumMontMul (C, 1, A, N, N0Inv)
 
   @param[in,out] Result    The result buffer.
+  @param[in]     NumWords  The number of Words of Result, A and N.
   @param[in]     A         The multiplicant.
   @param[in]     N         The modulus.
   @param[in]     N0Inv     The Montgomery Inverse of N.
-  @param[in]     NumWords  The number of Words of Result, A and N.
 
 **/
 STATIC
 VOID
 BigNumMontMul1 (
   IN OUT OC_BN_WORD        *Result,
+  IN     OC_BN_NUM_WORDS   NumWords,
   IN     CONST OC_BN_WORD  *A,
   IN     CONST OC_BN_WORD  *N,
-  IN     OC_BN_WORD        N0Inv,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     OC_BN_WORD        N0Inv
   )
 {
   UINTN RowIndex;
 
   ASSERT (Result != NULL);
+  ASSERT (NumWords > 0);
   ASSERT (A != NULL);
   ASSERT (N != NULL);
   ASSERT (N0Inv != 0);
@@ -548,12 +552,12 @@ BigNumMontMul1 (
   //
   // Perform the entire standard multiplication and one Montgomery Reduction.
   //
-  BigNumMontMulRow (Result, 1, A, N, N0Inv, NumWords);
+  BigNumMontMulRow (Result, NumWords, 1, A, N, N0Inv);
   //
   // Perform the remaining Montgomery Reductions.
   //
   for (RowIndex = 1; RowIndex < NumWords; ++RowIndex) {
-    BigNumMontMulRow0 (Result, N, N0Inv, NumWords);
+    BigNumMontMulRow0 (Result, NumWords, N, N0Inv);
   }
   //
   // As this implementation only reduces mod N on overflow and not for every
@@ -565,12 +569,12 @@ BigNumMontMul1 (
 BOOLEAN
 BigNumPowMod (
   IN OUT OC_BN_WORD        *Result,
+  IN     OC_BN_NUM_WORDS   NumWords,
   IN     CONST OC_BN_WORD  *A,
   IN     UINT32            B,
   IN     CONST OC_BN_WORD  *N,
   IN     OC_BN_WORD        N0Inv,
-  IN     CONST OC_BN_WORD  *RSqrMod,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     CONST OC_BN_WORD  *RSqrMod
   )
 {
   OC_BN_WORD *ATmp;
@@ -578,11 +582,11 @@ BigNumPowMod (
   UINTN      Index;
 
   ASSERT (Result != NULL);
+  ASSERT (NumWords > 0);
   ASSERT (A != NULL);
   ASSERT (N != NULL);
   ASSERT (N0Inv != 0);
   ASSERT (RSqrMod != NULL);
-  ASSERT (NumWords > 0);
   //
   // Currently, only the most frequent exponents are supported.
   //
@@ -600,7 +604,7 @@ BigNumPowMod (
   // Convert A into the Montgomery Domain.
   // ATmp = MM (A, R^2 mod N)
   //
-  BigNumMontMul (ATmp, A, RSqrMod, N, N0Inv, NumWords);
+  BigNumMontMul (ATmp, NumWords, A, RSqrMod, N, N0Inv);
 
   if (B == 0x10001) {
     //
@@ -610,34 +614,34 @@ BigNumPowMod (
       //
       // Result = MM (ATmp, ATmp)
       //
-      BigNumMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
+      BigNumMontMul (Result, NumWords, ATmp, ATmp, N, N0Inv);
       //
       // ATmp = MM (Result, Result)
       //
-      BigNumMontMul (ATmp, Result, Result, N, N0Inv, NumWords);
+      BigNumMontMul (ATmp, NumWords, Result, Result, N, N0Inv);
     }
     //
     // Because A is not within the Montgomery Domain, this implies another
     // division by R, which takes the result out of the Montgomery Domain.
     // C = MM (ATmp, A)
     //
-    BigNumMontMul (Result, ATmp, A, N, N0Inv, NumWords);
+    BigNumMontMul (Result, NumWords, ATmp, A, N, N0Inv);
   } else {
     //
     // Result = MM (ATmp, ATmp)
     //
-    BigNumMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
+    BigNumMontMul (Result, NumWords, ATmp, ATmp, N, N0Inv);
     //
     // ATmp = MM (Result, ATmp)
     //
-    BigNumMontMul (ATmp, Result, ATmp, N, N0Inv, NumWords);
+    BigNumMontMul (ATmp, NumWords, Result, ATmp, N, N0Inv);
     //
     // Perform a Montgomery Multiplication with 1, which effectively is a
     // division by R, taking the result out of the Montgomery Domain.
     // C = MM (ATmp, 1)
     // TODO: Is this needed or can we just multiply with A above?
     //
-    BigNumMontMul1 (Result, ATmp, N, N0Inv, NumWords);
+    BigNumMontMul1 (Result, NumWords, ATmp, N, N0Inv);
   }
   //
   // The Montgomery Multiplications above only ensure the result is mod N when
@@ -646,7 +650,7 @@ BigNumPowMod (
   // result is at most one modulus too large.
   // C = C mod N
   //
-  if (BigNumCmp (Result, N, NumWords) >= 0){
+  if (BigNumCmp (Result, NumWords, N) >= 0){
     BigNumSub (Result, NumWords, Result, N);
   }
 

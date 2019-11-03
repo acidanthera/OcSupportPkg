@@ -73,8 +73,8 @@ BigNumSwapWord (
   Calculates the Montgomery Inverse and R² mod N.
 
   @param[in,out] RSqrMod   The buffer to return R^2 mod N into.
-  @param[in]     N         The Montgomery Modulus.
   @param[in]     NumWords  The number of Words of RSqrMod and N.
+  @param[in]     N         The Montgomery Modulus.
 
   @returns  The Montgomery Inverse of N.
 
@@ -82,20 +82,20 @@ BigNumSwapWord (
 OC_BN_WORD
 BigNumCalculateMontParams (
   IN OUT OC_BN_WORD        *RSqrMod,
-  IN     CONST OC_BN_WORD  *N,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     OC_BN_NUM_WORDS   NumWords,
+  IN     CONST OC_BN_WORD  *N
   );
 
 /**
   Caulculates the exponentiation of A with B mod N.
 
   @param[in,out] Result    The buffer to return the result into.
+  @param[in]     NumWords  The number of Words of Result, A, N and RSqrMod.
   @param[in]     A         The base.
   @param[in]     B         The exponent.
   @param[in]     N         The modulus.
   @param[in]     N0Inv     The Montgomery Inverse of N.
   @param[in]     RSqrMod   Montgomery's R^2 mod N.
-  @param[in]     NumWords  The number of Words of Result, A, N and RSqrMod.
 
   @returns  Whether the operation was completes successfully.
 
@@ -103,12 +103,12 @@ BigNumCalculateMontParams (
 BOOLEAN
 BigNumPowMod (
   IN OUT OC_BN_WORD        *Result,
+  IN     OC_BN_NUM_WORDS   NumWords,
   IN     CONST OC_BN_WORD  *A,
   IN     UINT32            B,
   IN     CONST OC_BN_WORD  *N,
   IN     OC_BN_WORD        N0Inv,
-  IN     CONST OC_BN_WORD  *RSqrMod,
-  IN     OC_BN_NUM_WORDS   NumWords
+  IN     CONST OC_BN_WORD  *RSqrMod
   );
 
 #endif // BIG_NUM_LIB_H

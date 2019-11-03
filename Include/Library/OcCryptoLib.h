@@ -391,8 +391,10 @@ RsaVerifySigHashFromKey (
   The modulus' size must be a multiple of the configured BIGNUM word size.
   This will be true for any conventional RSA, which use two's potencies.
 
-  @param[in] Modulus        The RSA modulus byte array.
-  @param[in] ModulusSize    The size, in bytes, of Modulus.
+  @param[in] N              The RSA modulus.
+  @param[in] NumWords       The number of Words of N and RSqrMod.
+  @param[in] N0Inv          The Montgomery Inverse of N.
+  @param[in] RSqrMod        Montgomery's R^2 mod N.
   @param[in] Exponent       The RSA exponent.
   @param[in] Signature      The RSA signature to be verified.
   @param[in] SignatureSize  Size, in bytes, of Signature.
@@ -406,9 +408,9 @@ RsaVerifySigHashFromKey (
 BOOLEAN
 RsaVerifySigDataFromProcessed (
   IN CONST OC_BN_WORD  *N,
+  IN UINTN             NumWords,
   IN OC_BN_WORD        N0Inv,
   IN CONST OC_BN_WORD  *RSqrMod,
-  IN UINTN             NumWords,
   IN UINT32            Exponent,
   IN CONST UINT8       *Signature,
   IN UINTN             SignatureSize,

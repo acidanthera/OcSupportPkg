@@ -95,8 +95,8 @@ BigNumMod (
   Returns the relative order of A and B. A and B must have the same precision.
 
   @param[in] A         The first number to compare.
-  @param[in] B         The second number to compare.
   @param[in] NumWords  The number of Words to compare.
+  @param[in] B         The second number to compare.
 
   @retval < 0  A is lower than B.
   @retval 0    A is as big as B.
@@ -106,8 +106,8 @@ BigNumMod (
 INTN
 BigNumCmp (
   IN CONST OC_BN_WORD  *A,
-  IN CONST OC_BN_WORD  *B,
-  IN OC_BN_NUM_WORDS   NumWords
+  IN OC_BN_NUM_WORDS   NumWords,
+  IN CONST OC_BN_WORD  *B
   );
 
 /**
