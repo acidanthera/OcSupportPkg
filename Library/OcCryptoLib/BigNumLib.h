@@ -24,29 +24,13 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 /**
   Assigns A the value 0.
 
-  @param[in,out] A  The number to assign to.
+  @param[in,out] A         The number to assign to.
+  @param[in]     NumWords  The number of Words of A.
 
 **/
 VOID
 BigNumAssign0 (
-  IN OUT OC_BN  *A
-  );
-
-/**
-  Parses a data array into a number. The buffer size must be a multiple of the
-  Word size. The length of Result must precisely fit the required size.
-
-  @param[in,out] Result      The buffer to store the result in.
-  @param[in]     Buffer      The buffer to parse.
-  @param[in]     BufferSize  The size, in bytes, of Buffer.
-  @param[in]     NumWords    The number of Words of Result.
-
-**/
-VOID
-BigNumDataParseBuffer (
-  IN OUT OC_BN_WORD       *Result,
-  IN     CONST UINT8      *Buffer,
-  IN     UINTN            BufferSize,
+  IN OUT OC_BN_WORD       *A,
   IN     OC_BN_NUM_WORDS  NumWords
   );
 
@@ -55,15 +39,17 @@ BigNumDataParseBuffer (
   Word size. The length of Result must precisely fit the required size.
 
   @param[in,out] Result      The buffer to store the result in.
+  @param[in]     NumWords    The number of Words of Result.
   @param[in]     Buffer      The buffer to parse.
   @param[in]     BufferSize  The size, in bytes, of Buffer.
 
 **/
 VOID
 BigNumParseBuffer (
-  IN OUT OC_BN        *Result,
-  IN     CONST UINT8  *Buffer,
-  IN     UINTN        BufferSize
+  IN OUT OC_BN_WORD       *Result,
+  IN     OC_BN_NUM_WORDS  NumWords,
+  IN     CONST UINT8      *Buffer,
+  IN     UINTN            BufferSize
   );
 
 /**
@@ -86,16 +72,18 @@ BigNumSwapWord (
 /**
   Calculates the Montgomery Inverse and R² mod N.
 
-  @param[in,out] RSqrMod  The buffer to return R² mod N into.
-  @param[in]     N        The Montgomery Modulus.
+  @param[in,out] RSqrMod   The buffer to return R^2 mod N into.
+  @param[in]     N         The Montgomery Modulus.
+  @param[in]     NumWords  The number of Words of RSqrMod and N.
 
   @returns  The Montgomery Inverse of N.
 
 **/
 OC_BN_WORD
 BigNumCalculateMontParams (
-  IN OUT OC_BN        *RSqrMod,
-  IN     CONST OC_BN  *N
+  IN OUT OC_BN_WORD        *RSqrMod,
+  IN     CONST OC_BN_WORD  *N,
+  IN     OC_BN_NUM_WORDS   NumWords
   );
 
 /**
@@ -113,7 +101,7 @@ BigNumCalculateMontParams (
 
 **/
 BOOLEAN
-BigNumDataPowMod (
+BigNumPowMod (
   IN OUT OC_BN_WORD        *Result,
   IN     CONST OC_BN_WORD  *A,
   IN     UINT32            B,

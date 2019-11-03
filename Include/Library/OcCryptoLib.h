@@ -40,64 +40,6 @@ typedef UINT32 OC_BN_NUM_BITS;
 #define OC_BN_MAX_SIZE  MAX_UINT16
 #define OC_BN_MAX_LEN   (OC_BN_MAX_SIZE / OC_BN_WORD_SIZE)
 
-typedef struct {
-  ///
-  /// The number of Words in Words.
-  ///
-  OC_BN_NUM_WORDS NumWords;
-  ///
-  /// The number data in reverse byte order (LSB first).
-  ///
-  OC_BN_WORD      Words[];
-} OC_BN;
-
-/**
-  Declares a fixed-size OC_BN structure with a _##Bytes suffix.
-
-  @param[in] AlignSize  The aligned size of the data array.
-
-**/
-#define OC_BN_DECLARE(AlignSize)                      \
-  OC_STATIC_ASSERT (                                  \
-    ((AlignSize) % OC_BN_WORD_SIZE == 0),             \
-    "OC_BN declaration used an unaligned size."       \
-    );                                                \
-                                                      \
-  OC_STATIC_ASSERT (                                  \
-    ((AlignSize) / OC_BN_WORD_SIZE <= OC_BN_MAX_LEN), \
-    "OC_BN declaration used a too large size."        \
-    );                                                \
-                                                      \
-  typedef struct {                                    \
-    OC_BN_NUM_WORDS NumWords;                         \
-    union {                                           \
-      UINT8      Bytes[bytes];                        \
-      OC_BN_WORD Words[(bytes) / OC_BN_WORD_SIZE];    \
-    };                                                \
-  } OC_BN_##AlignSize
-
-/**
-  Calculates the size of A's data array.
-
-  @param[in] A  The number to be to retrieve the data size of.
-
-  @returns  The data array size of A.
-
-**/
-#define OC_BN_DSIZE(A) ((UINTN)(A)->NumWords * OC_BN_WORD_SIZE)
-
-/**
-  Calculates the size of a OC_BN structure with a data array size of AlignSize.
-  AlignSize must be aligned on a sizeof (OC_BN_WORD) boundary. The size
-  returned is aligned on a OC_ALIGNOF (OC_BN) boundary.
-
-  @param[in] AlignSize  The aligned size of the data array.
-
-  @returns  The requested size of the OC_BN structure.
-**/
-#define OC_BN_SIZE(AlignSize) \
-  (ALIGN_VALUE (sizeof (OC_BN) + (AlignSize), OC_ALIGNOF (OC_BN)))
-
 //
 // Default to 128-bit key length for AES.
 //

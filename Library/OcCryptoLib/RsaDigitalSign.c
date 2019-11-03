@@ -222,14 +222,14 @@ RsaVerifySigHashFromProcessed (
   EncryptedSigNum = Memory;
   DecryptedSigNum = (OC_BN_WORD *)((UINTN)EncryptedSigNum + ModulusSize);
 
-  BigNumDataParseBuffer (
+  BigNumParseBuffer (
     EncryptedSigNum,
+    (OC_BN_NUM_WORDS)NumWords,
     Signature,
-    SignatureSize,
-    (OC_BN_NUM_WORDS)NumWords
+    SignatureSize
     );
 
-  Result = BigNumDataPowMod (
+  Result = BigNumPowMod (
              DecryptedSigNum,
              EncryptedSigNum,
              Exponent,
@@ -450,11 +450,10 @@ RsaVerifySigDataFromData (
   )
 {
   UINTN      ModulusNumWords;
-  UINTN      ModulusBnSize;
 
   VOID       *Memory;
-  OC_BN      *N;
-  OC_BN      *RSqrMod;
+  OC_BN_WORD *N;
+  OC_BN_WORD *RSqrMod;
 
   OC_BN_WORD N0Inv;
   BOOLEAN    Result;
@@ -478,30 +477,26 @@ RsaVerifySigDataFromData (
     "An overflow verification must be added"
     );
 
-  ModulusBnSize = OC_BN_SIZE (ModulusSize);
-  Memory = AllocatePool (2 * ModulusBnSize);
+  Memory = AllocatePool (2 * ModulusSize);
   if (Memory == NULL) {
     return FALSE;
   }
 
-  N       = Memory;
-  RSqrMod = (OC_BN *)((UINTN)N + ModulusBnSize);
+  N       = (OC_BN_WORD *)Memory;
+  RSqrMod = (OC_BN_WORD *)((UINTN)N + ModulusSize);
 
-  N->NumWords       = (OC_BN_NUM_WORDS)ModulusNumWords;
-  RSqrMod->NumWords = (OC_BN_NUM_WORDS)ModulusNumWords;
+  BigNumParseBuffer (N, ModulusNumWords, Modulus, ModulusSize);
 
-  BigNumParseBuffer (N, Modulus, ModulusSize);
-
-  N0Inv = BigNumCalculateMontParams (RSqrMod, N);
+  N0Inv = BigNumCalculateMontParams (RSqrMod, N, ModulusNumWords);
   if (N0Inv == 0) {
     FreePool (Memory);
     return FALSE;
   }
 
   Result = RsaVerifySigDataFromProcessed (
-             N->Words,
+             N,
              N0Inv,
-             RSqrMod->Words,
+             RSqrMod,
              ModulusNumWords,
              Exponent,
              Signature,

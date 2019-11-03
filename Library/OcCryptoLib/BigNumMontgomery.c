@@ -53,7 +53,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 STATIC
 OC_BN_WORD
 BigNumMontInverse (
-  IN CONST OC_BN  *A
+  IN CONST OC_BN_WORD  *A
   )
 {
   OC_BN_WORD Dividend;
@@ -68,7 +68,7 @@ BigNumMontInverse (
   //
   // We cannot compute the Montgomery Inverse of 0.
   //
-  if (A->Words[0] == 0) {
+  if (A[0] == 0) {
     return 0;
   }
 
@@ -98,7 +98,7 @@ BigNumMontInverse (
   // Divisor  = Mod;           // => A->Words[0]
   //
   Dividend = 0;
-  Divisor  = A->Words[0];
+  Divisor  = A[0];
   //
   // Tmp = Y - Div * X;        // => 1
   // Y   = X;                  // => 0
@@ -158,29 +158,22 @@ BigNumMontInverse (
   return (OC_BN_WORD)0U - Y;
 }
 
-/**
-  Calculates the Montgomery Inverse and R² mod N.
-
-  @param[in,out] RSqrMod  The buffer to return R² mod N into.
-  @param[in]     N        The Montgomery Modulus.
-
-  @returns  The Montgomery Inverse of N.
-
-**/
 OC_BN_WORD
 BigNumCalculateMontParams (
-  IN OUT OC_BN        *RSqrMod,
-  IN     CONST OC_BN  *N
+  IN OUT OC_BN_WORD        *RSqrMod,
+  IN     CONST OC_BN_WORD  *N,
+  IN     OC_BN_NUM_WORDS   NumWords
   )
 {
-  OC_BN_WORD N0Inv;
-  UINT32     NumBits;
-  UINTN      Size;
-  OC_BN      *RSqr;
+  OC_BN_WORD      N0Inv;
+  UINT32          NumBits;
+  UINTN           SizeRSqr;
+  OC_BN_NUM_WORDS NumWordsRSqr;
+  OC_BN_WORD      *RSqr;
 
   ASSERT (RSqrMod != NULL);
   ASSERT (N != NULL);
-  ASSERT (RSqrMod->NumWords == N->NumWords);
+  ASSERT (NumWords > 0);
   //
   // Calculate the Montgomery Inverse.
   // This is a reduced approach of the algorithmic -1 / N mod 2^#Bits(N),
@@ -192,7 +185,7 @@ BigNumCalculateMontParams (
     return 0;
   }
 
-  NumBits = BigNumSignificantBits (N);
+  NumBits = BigNumSignificantBits (N, NumWords);
 
   OC_STATIC_ASSERT (
     OC_BN_MAX_SIZE * OC_CHAR_BIT <= ((MAX_UINTN - 1) / 2) - (OC_CHAR_BIT - 1),
@@ -203,28 +196,28 @@ BigNumCalculateMontParams (
   // overflow. OC_CHAR_BIT-1 is added to achieve rounding towards the next Byte
   // boundary.
   //
-  Size = ALIGN_VALUE (
-           ((2 * (NumBits + 1) + (OC_CHAR_BIT - 1)) / OC_CHAR_BIT),
-           OC_BN_WORD_SIZE
-           );
-  if (Size > OC_BN_MAX_SIZE) {
+  SizeRSqr = ALIGN_VALUE (
+               ((2 * (NumBits + 1) + (OC_CHAR_BIT - 1)) / OC_CHAR_BIT),
+               OC_BN_WORD_SIZE
+               );
+  if (SizeRSqr > OC_BN_MAX_SIZE) {
     return 0;
   }
 
-  RSqr = AllocatePool (OC_BN_SIZE (Size));
+  RSqr = AllocatePool (SizeRSqr);
   if (RSqr == NULL) {
     return 0;
   }
-  RSqr->NumWords = (OC_BN_NUM_WORDS)(Size / OC_BN_WORD_SIZE);
+  NumWordsRSqr = (OC_BN_NUM_WORDS)(SizeRSqr / OC_BN_WORD_SIZE);
   //
   // Calculate Montgomery's R^2 mod N.
   //
-  BigNumAssign0 (RSqr);
+  BigNumAssign0 (RSqr, NumWordsRSqr);
   //
   // 2 * NumBits cannot overflow as per above.
   //
-  BigNumOrWord (RSqr, 1, 2 * NumBits);
-  BigNumMod (RSqrMod, RSqr, N);
+  BigNumOrWord (RSqr, NumWordsRSqr, 1, 2 * NumBits);
+  BigNumMod (RSqrMod, NumWords, RSqr, NumWordsRSqr, N);
 
   FreePool (RSqr);
 
@@ -315,7 +308,7 @@ BigNumWordAddMulCarry (
 **/
 STATIC
 VOID
-BigNumDataMontMulRow (
+BigNumMontMulRow (
   IN OUT OC_BN_WORD        *Result,
   IN     OC_BN_WORD        AWord,
   IN     CONST OC_BN_WORD  *B,
@@ -404,7 +397,7 @@ BigNumDataMontMulRow (
     // The discarded most significant word must be the last borrow of the
     // subtraction, as C_actual = (CCurMul >> WORD_BITS)||C.
     //
-    BigNumDataSub (Result, Result, N, NumWords);
+    BigNumSub (Result, NumWords, Result, N);
   }
 }
 
@@ -421,7 +414,7 @@ BigNumDataMontMulRow (
 **/
 STATIC
 VOID
-BigNumDataMontMul (
+BigNumMontMul (
   IN OUT OC_BN_WORD        *Result,
   IN     CONST OC_BN_WORD  *A,
   IN     CONST OC_BN_WORD  *B,
@@ -445,7 +438,7 @@ BigNumDataMontMul (
   // as the positional factor is stripped by the word-size modulus.
   //
   for (RowIndex = 0; RowIndex < NumWords; ++RowIndex) {
-    BigNumDataMontMulRow (Result, A[RowIndex], B, N, N0Inv, NumWords);
+    BigNumMontMulRow (Result, A[RowIndex], B, N, N0Inv, NumWords);
   }
   //
   // As this implementation only reduces mod N on overflow and not for every
@@ -468,7 +461,7 @@ BigNumDataMontMul (
 **/
 STATIC
 VOID
-BigNumDataMontMulRow0 (
+BigNumMontMulRow0 (
   IN OUT OC_BN_WORD        *Result,
   IN     CONST OC_BN_WORD  *N,
   IN     OC_BN_WORD        N0Inv,
@@ -536,7 +529,7 @@ BigNumDataMontMulRow0 (
 **/
 STATIC
 VOID
-BigNumDataMontMul1 (
+BigNumMontMul1 (
   IN OUT OC_BN_WORD        *Result,
   IN     CONST OC_BN_WORD  *A,
   IN     CONST OC_BN_WORD  *N,
@@ -555,12 +548,12 @@ BigNumDataMontMul1 (
   //
   // Perform the entire standard multiplication and one Montgomery Reduction.
   //
-  BigNumDataMontMulRow (Result, 1, A, N, N0Inv, NumWords);
+  BigNumMontMulRow (Result, 1, A, N, N0Inv, NumWords);
   //
   // Perform the remaining Montgomery Reductions.
   //
   for (RowIndex = 1; RowIndex < NumWords; ++RowIndex) {
-    BigNumDataMontMulRow0 (Result, N, N0Inv, NumWords);
+    BigNumMontMulRow0 (Result, N, N0Inv, NumWords);
   }
   //
   // As this implementation only reduces mod N on overflow and not for every
@@ -569,22 +562,8 @@ BigNumDataMontMul1 (
   //
 }
 
-/**
-  Caulculates the exponentiation of A with B mod N.
-
-  @param[in,out] Result    The buffer to return the result into.
-  @param[in]     A         The base.
-  @param[in]     B         The exponent.
-  @param[in]     N         The modulus.
-  @param[in]     N0Inv     The Montgomery Inverse of N.
-  @param[in]     RSqrMod   Montgomery's R^2 mod N.
-  @param[in]     NumWords  The number of Words of Result, A, N and RSqrMod.
-
-  @returns  Whether the operation was completes successfully.
-
-**/
 BOOLEAN
-BigNumDataPowMod (
+BigNumPowMod (
   IN OUT OC_BN_WORD        *Result,
   IN     CONST OC_BN_WORD  *A,
   IN     UINT32            B,
@@ -603,6 +582,7 @@ BigNumDataPowMod (
   ASSERT (N != NULL);
   ASSERT (N0Inv != 0);
   ASSERT (RSqrMod != NULL);
+  ASSERT (NumWords > 0);
   //
   // Currently, only the most frequent exponents are supported.
   //
@@ -620,7 +600,7 @@ BigNumDataPowMod (
   // Convert A into the Montgomery Domain.
   // ATmp = MM (A, R^2 mod N)
   //
-  BigNumDataMontMul (ATmp, A, RSqrMod, N, N0Inv, NumWords);
+  BigNumMontMul (ATmp, A, RSqrMod, N, N0Inv, NumWords);
 
   if (B == 0x10001) {
     //
@@ -630,34 +610,34 @@ BigNumDataPowMod (
       //
       // Result = MM (ATmp, ATmp)
       //
-      BigNumDataMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
+      BigNumMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
       //
       // ATmp = MM (Result, Result)
       //
-      BigNumDataMontMul (ATmp, Result, Result, N, N0Inv, NumWords);
+      BigNumMontMul (ATmp, Result, Result, N, N0Inv, NumWords);
     }
     //
     // Because A is not within the Montgomery Domain, this implies another
     // division by R, which takes the result out of the Montgomery Domain.
     // C = MM (ATmp, A)
     //
-    BigNumDataMontMul (Result, ATmp, A, N, N0Inv, NumWords);
+    BigNumMontMul (Result, ATmp, A, N, N0Inv, NumWords);
   } else {
     //
     // Result = MM (ATmp, ATmp)
     //
-    BigNumDataMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
+    BigNumMontMul (Result, ATmp, ATmp, N, N0Inv, NumWords);
     //
     // ATmp = MM (Result, ATmp)
     //
-    BigNumDataMontMul (ATmp, Result, ATmp, N, N0Inv, NumWords);
+    BigNumMontMul (ATmp, Result, ATmp, N, N0Inv, NumWords);
     //
     // Perform a Montgomery Multiplication with 1, which effectively is a
     // division by R, taking the result out of the Montgomery Domain.
     // C = MM (ATmp, 1)
     // TODO: Is this needed or can we just multiply with A above?
     //
-    BigNumDataMontMul1 (Result, ATmp, N, N0Inv, NumWords);
+    BigNumMontMul1 (Result, ATmp, N, N0Inv, NumWords);
   }
   //
   // The Montgomery Multiplications above only ensure the result is mod N when
@@ -666,8 +646,8 @@ BigNumDataPowMod (
   // result is at most one modulus too large.
   // C = C mod N
   //
-  if (BigNumDataCmp (Result, N, NumWords) >= 0){
-    BigNumDataSub (Result, Result, N, NumWords);
+  if (BigNumCmp (Result, N, NumWords) >= 0){
+    BigNumSub (Result, NumWords, Result, N);
   }
 
   FreePool (ATmp);
