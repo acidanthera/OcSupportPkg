@@ -15,13 +15,14 @@
 #include <Base.h>
 
 #include <Library/OcAppleKeysLib.h>
+#include <Library/OcMiscLib.h>
 
 #pragma pack(push, 1)
 
 ///
 /// The data size of a 2048 Bits RSA Public Key. Includes N and R^2 mod N.
 ///
-#define OC_RSA_PK_2048_NUM_BYTES  (2 * (2048 / 8))
+#define OC_RSA_PK_2048_NUM_BYTES  (2 * (2048 / OC_CHAR_BIT))
 
 typedef PACKED struct {
   ///
@@ -33,7 +34,7 @@ typedef PACKED struct {
   ///
   union {
     UINT8               Bytes[OC_RSA_PK_2048_NUM_BYTES];
-    UINT64              Qwords[OC_RSA_PK_2048_NUM_BYTES / 8];
+    UINT64              Qwords[OC_RSA_PK_2048_NUM_BYTES / sizeof (UINT64)];
   }                     Data;
 } OC_RSA_PUBLIC_KEY_2048;
 
@@ -49,7 +50,7 @@ OC_STATIC_ASSERT (
   );
 
 STATIC CONST OC_RSA_PUBLIC_KEY_2048 mPkDb1 = {
-  { 32, { 0 }, 0xb9a584a4e7cd16d1 },
+  { ARRAY_SIZE (mPkDb1.Data.Qwords) / 2, { 0 }, 0xb9a584a4e7cd16d1 },
   /**
     CFFD3E6B FE66EC75 F44B7E2E 0ED26398 08A98D10 AC378E55
     1CAA0E1C 1D85EF6C D51C758C 751816BF 599FBEDA EF4D6B0C
@@ -120,7 +121,7 @@ STATIC CONST OC_RSA_PUBLIC_KEY_2048 mPkDb1 = {
 };
 
 STATIC CONST OC_RSA_PUBLIC_KEY_2048 mPkDb2 = {
-  { 32, { 0 }, 0x646a020e9ed45d13 },
+  { ARRAY_SIZE (mPkDb2.Data.Qwords) / 2, { 0 }, 0x646a020e9ed45d13 },
   /**
     E50AC288 2D44B7E3 3B67C51D AC639329 DA0363BD EAB5179F
     F88E460E E703D6CE 30383B25 0DE0E2FF 39386811 512A1A3B

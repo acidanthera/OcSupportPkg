@@ -20,6 +20,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define OC_CRYPTO_LIB_H
 
 #include <Library/OcGuardLib.h>
+#include <Library/OcMiscLib.h>
 
 ///
 /// A BIGNUM word. This is at best an integer of the platform's natural size
@@ -30,7 +31,7 @@ typedef UINTN OC_BN_WORD;
 // Declarations regarding the Word size.
 //
 #define OC_BN_WORD_SIZE      (sizeof (OC_BN_WORD))
-#define OC_BN_WORD_NUM_BITS  (OC_BN_WORD_SIZE * 8U)
+#define OC_BN_WORD_NUM_BITS  (OC_BN_WORD_SIZE * OC_CHAR_BIT)
 //
 // Declarations regarding the maximum size of OC_BN structures.
 //
@@ -195,7 +196,7 @@ typedef SHA512_CONTEXT SHA384_CONTEXT;
 ///
 typedef PACKED struct {
   ///
-  /// The number of 64-bit values in Data.
+  /// The number of 64-bit values of N and RSqrMod each.
   ///
   UINT16 NumQwords;
   ///

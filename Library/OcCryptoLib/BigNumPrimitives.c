@@ -45,7 +45,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define OC_BN_MAX_VAL  ((OC_BN_WORD)0U - 1U)
 
 OC_STATIC_ASSERT (
-  OC_BN_WORD_SIZE == 4 || OC_BN_WORD_SIZE == 8,
+  OC_BN_WORD_SIZE == sizeof (UINT32) || OC_BN_WORD_SIZE == sizeof (UINT64),
   "OC_BN_WORD_SIZE and OC_BN_WORD_NUM_BITS usages must be adapted."
   );
 
@@ -62,10 +62,12 @@ BigNumSwapWord (
   IN OC_BN_WORD  Word
   )
 {
-  if (OC_BN_WORD_SIZE == 4) {
-    return SwapBytes32 ((UINT32)Word);
-  } else if (OC_BN_WORD_SIZE == 8) {
-    return SwapBytes64 ((UINT64)Word);
+  if (OC_BN_WORD_SIZE == sizeof (UINT32)) {
+    return (OC_BN_WORD)SwapBytes32 ((UINT32)Word);
+  }
+  
+  if (OC_BN_WORD_SIZE == sizeof (UINT64)) {
+    return (OC_BN_WORD)SwapBytes64 ((UINT64)Word);
   }
 
   ASSERT (FALSE);
@@ -207,7 +209,7 @@ BigNumRightShiftBitsSmall (
   ASSERT (Exponent > 0);
   ASSERT (Exponent < OC_BN_WORD_NUM_BITS);
 
-  for (Index = 0; Index < (A->NumWords - 1); ++Index) {
+  for (Index = 0; Index < (A->NumWords - 1U); ++Index) {
     A->Words[Index] = (A->Words[Index] >> Exponent) | (A->Words[Index + 1] << (OC_BN_WORD_NUM_BITS - Exponent));
   }
   A->Words[Index] >>= Exponent;
@@ -237,8 +239,8 @@ BigNumWordMul (
 {
   ASSERT (Hi != NULL);
 
-  if (OC_BN_WORD_SIZE == 4) {
-    UINT64 Result = (UINT64)A * B;
+  if (OC_BN_WORD_SIZE == sizeof (UINT32)) {
+    Result64 = (UINT64)A * B;
     //
     // FIXME: The subtraction in the shift is a dirty hack to shut up MSVC.
     //
@@ -959,22 +961,22 @@ BigNumDataParseBuffer (
   ASSERT ((BufferSize % OC_BN_WORD_SIZE) == 0);
 
   for (Index = OC_BN_WORD_SIZE; Index <= BufferSize; Index += OC_BN_WORD_SIZE) {
-    if (OC_BN_WORD_SIZE == 4) {
-      Tmp = 
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 0] << 24U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 1] << 16U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 2] << 8U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 3] << 0U);
-    } else if (OC_BN_WORD_SIZE == 8) {
-      Tmp =
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 0] << 56U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 1] << 48U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 2] << 40U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 3] << 32U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 4] << 24U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 5] << 16U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 6] << 8U) |
-        ((OC_BN_WORD)Buffer[(BufferSize - Index) + 7] << 0U);
+    if (OC_BN_WORD_SIZE == sizeof (UINT32)) {
+      Tmp = (OC_BN_WORD)(
+        ((UINT32)Buffer[(BufferSize - Index) + 0] << 24U) |
+        ((UINT32)Buffer[(BufferSize - Index) + 1] << 16U) |
+        ((UINT32)Buffer[(BufferSize - Index) + 2] << 8U) |
+        ((UINT32)Buffer[(BufferSize - Index) + 3] << 0U));
+    } else if (OC_BN_WORD_SIZE == sizeof (UINT64)) {
+      Tmp = (OC_BN_WORD)(
+        ((UINT64)Buffer[(BufferSize - Index) + 0] << 56U) |
+        ((UINT64)Buffer[(BufferSize - Index) + 1] << 48U) |
+        ((UINT64)Buffer[(BufferSize - Index) + 2] << 40U) |
+        ((UINT64)Buffer[(BufferSize - Index) + 3] << 32U) |
+        ((UINT64)Buffer[(BufferSize - Index) + 4] << 24U) |
+        ((UINT64)Buffer[(BufferSize - Index) + 5] << 16U) |
+        ((UINT64)Buffer[(BufferSize - Index) + 6] << 8U) |
+        ((UINT64)Buffer[(BufferSize - Index) + 7] << 0U));
     }
 
     Result[(Index / OC_BN_WORD_SIZE) - 1] = Tmp;
