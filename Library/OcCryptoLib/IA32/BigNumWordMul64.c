@@ -14,7 +14,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <Library/DebugLib.h>
 #include <Library/OcGuardLib.h>
-#include <Library/OcCryptoLib.h>
+
+#include "../BigNumLib.h"
 
 OC_BN_WORD
 BigNumWordMul64 (

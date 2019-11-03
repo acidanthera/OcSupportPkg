@@ -20,25 +20,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define OC_CRYPTO_LIB_H
 
 #include <Library/OcGuardLib.h>
-#include <Library/OcMiscLib.h>
-
-///
-/// A BIGNUM word. This is at best an integer of the platform's natural size
-/// to optimize memory accesses and arithmetic operation count.
-///
-typedef UINTN OC_BN_WORD;
-//
-// Declarations regarding the Word size.
-//
-#define OC_BN_WORD_SIZE      (sizeof (OC_BN_WORD))
-#define OC_BN_WORD_NUM_BITS  (OC_BN_WORD_SIZE * OC_CHAR_BIT)
-//
-// Declarations regarding the maximum size of OC_BN structures.
-//
-typedef UINT16 OC_BN_NUM_WORDS;
-typedef UINT32 OC_BN_NUM_BITS;
-#define OC_BN_MAX_SIZE  MAX_UINT16
-#define OC_BN_MAX_LEN   (OC_BN_MAX_SIZE / OC_BN_WORD_SIZE)
 
 //
 // Default to 128-bit key length for AES.
@@ -384,39 +365,6 @@ RsaVerifySigHashFromKey (
   IN CONST UINT8              *Hash,
   IN UINTN                    HashSize,
   IN OC_SIG_HASH_TYPE         Algorithm
-  );
-
-/**
-  Verify RSA PKCS1.5 signed data against its signature.
-  The modulus' size must be a multiple of the configured BIGNUM word size.
-  This will be true for any conventional RSA, which use two's potencies.
-
-  @param[in] N              The RSA modulus.
-  @param[in] NumWords       The number of Words of N and RSqrMod.
-  @param[in] N0Inv          The Montgomery Inverse of N.
-  @param[in] RSqrMod        Montgomery's R^2 mod N.
-  @param[in] Exponent       The RSA exponent.
-  @param[in] Signature      The RSA signature to be verified.
-  @param[in] SignatureSize  Size, in bytes, of Signature.
-  @param[in] Data           The signed data to verify.
-  @param[in] DataSize       Size, in bytes, of Data.
-  @param[in] Algorithm      The RSA algorithm used.
-
-  @returns  Whether the signature has been successfully verified as valid.
-
-**/
-BOOLEAN
-RsaVerifySigDataFromProcessed (
-  IN CONST OC_BN_WORD  *N,
-  IN UINTN             NumWords,
-  IN OC_BN_WORD        N0Inv,
-  IN CONST OC_BN_WORD  *RSqrMod,
-  IN UINT32            Exponent,
-  IN CONST UINT8       *Signature,
-  IN UINTN             SignatureSize,
-  IN CONST UINT8       *Data,
-  IN UINTN             DataSize,
-  IN OC_SIG_HASH_TYPE  Algorithm
   );
 
 /**

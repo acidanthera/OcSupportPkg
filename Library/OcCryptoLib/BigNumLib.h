@@ -17,6 +17,26 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef BIG_NUM_LIB_H
 #define BIG_NUM_LIB_H
 
+#include <Library/OcMiscLib.h>
+
+///
+/// A BIGNUM word. This is at best an integer of the platform's natural size
+/// to optimize memory accesses and arithmetic operation count.
+///
+typedef UINTN OC_BN_WORD;
+//
+// Declarations regarding the Word size.
+//
+#define OC_BN_WORD_SIZE      (sizeof (OC_BN_WORD))
+#define OC_BN_WORD_NUM_BITS  (OC_BN_WORD_SIZE * OC_CHAR_BIT)
+//
+// Declarations regarding the maximum size of OC_BN structures.
+//
+typedef UINT16 OC_BN_NUM_WORDS;
+typedef UINT32 OC_BN_NUM_BITS;
+#define OC_BN_MAX_SIZE  MAX_UINT16
+#define OC_BN_MAX_LEN   (OC_BN_MAX_SIZE / OC_BN_WORD_SIZE)
+
 //
 // Primitives
 //

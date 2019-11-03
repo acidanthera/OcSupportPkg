@@ -313,6 +313,26 @@ RsaVerifySigHashFromProcessed (
   return TRUE;
 }
 
+/**
+  Verify RSA PKCS1.5 signed data against its signature.
+  The modulus' size must be a multiple of the configured BIGNUM word size.
+  This will be true for any conventional RSA, which use two's potencies.
+
+  @param[in] N              The RSA modulus.
+  @param[in] NumWords       The number of Words of N and RSqrMod.
+  @param[in] N0Inv          The Montgomery Inverse of N.
+  @param[in] RSqrMod        Montgomery's R^2 mod N.
+  @param[in] Exponent       The RSA exponent.
+  @param[in] Signature      The RSA signature to be verified.
+  @param[in] SignatureSize  Size, in bytes, of Signature.
+  @param[in] Data           The signed data to verify.
+  @param[in] DataSize       Size, in bytes, of Data.
+  @param[in] Algorithm      The RSA algorithm used.
+
+  @returns  Whether the signature has been successfully verified as valid.
+
+**/
+STATIC
 BOOLEAN
 RsaVerifySigDataFromProcessed (
   IN CONST OC_BN_WORD  *N,
