@@ -67,6 +67,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 //
 // Possible RSA algorithm types supported by OcCryptoLib
 // for RSA digital signature verification
+// PcdOcCryptoAllowedSigHashTypes MUST be kept in sync with changes!
 //
 typedef enum OC_SIG_HASH_TYPE_ {
   OcSigHashTypeSha256,

@@ -47,6 +47,10 @@
 [Sources.X64]
   IA32/BigNumWordMul64.c
 
+[FixedPcd]
+  gOcSupportPkgTokenSpaceGuid.PcdOcCryptoAllowedRsaModuli
+  gOcSupportPkgTokenSpaceGuid.PcdOcCryptoAllowedSigHashTypes
+
 [Packages]
   MdePkg/MdePkg.dec
   OcSupportPkg/OcSupportPkg.dec

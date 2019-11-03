@@ -27,6 +27,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/MemoryAllocationLib.h>
 #include <Library/OcCryptoLib.h>
 #include <Library/OcGuardLib.h>
+#include <Library/PcdLib.h>
 
 #include "BigNumLib.h"
 
@@ -48,6 +49,43 @@ STATIC CONST UINT8 mPkcsDigestEncodingPrefixSha512[] = {
   0x02, 0x03, 0x05, 0x00, 0x04, 0x40
 };
 
+/**
+  Returns whether the RSA modulus size is allowed.
+
+  @param[in]  ModulusSize  The size, in bytes, of the RSA modulus.
+
+**/
+STATIC
+BOOLEAN
+InternalRsaModulusSizeIsAllowed (
+  IN UINT16  ModulusSize
+  )
+{
+  //
+  // Verify ModulusSize is a two's potency.
+  //
+  if ((ModulusSize & (ModulusSize - 1U)) != 0) {
+    return FALSE;
+  }
+
+  return (PcdGet16 (PcdOcCryptoAllowedRsaModuli) & ModulusSize) != 0;
+}
+
+/**
+  Returns whether the signature hashing algorithm is allowed.
+  
+  @param[in]  Type  The signature hashing algorithm type.
+
+**/
+STATIC
+BOOLEAN
+InternalSigHashTypeIsAllowed (
+  IN OC_SIG_HASH_TYPE  Type
+  )
+{
+  return (PcdGet16 (PcdOcCryptoAllowedSigHashTypes) & (1U << Type)) != 0;
+}
+
 INTN
 SigVerifyShaHashBySize (
   IN CONST VOID   *Data,
@@ -56,7 +94,8 @@ SigVerifyShaHashBySize (
   IN UINTN        HashSize
   )
 {
-  UINT8 DataDigest[OC_MAX_SHA_DIGEST_SIZE];
+  OC_SIG_HASH_TYPE Hashtype;
+  UINT8            DataDigest[OC_MAX_SHA_DIGEST_SIZE];
 
   ASSERT (Data != NULL);
   ASSERT (DataSize > 0);
@@ -67,18 +106,21 @@ SigVerifyShaHashBySize (
   switch (HashSize) {
     case SHA512_DIGEST_SIZE:
     {
+      Hashtype = OcSigHashTypeSha512;
       Sha512 (DataDigest, Data, DataSize);
       break;
     }
 
     case SHA384_DIGEST_SIZE:
     {
+      Hashtype = OcSigHashTypeSha384;
       Sha384 (DataDigest, Data, DataSize);
       break;
     }
 
     case SHA256_DIGEST_SIZE:
     {
+      Hashtype = OcSigHashTypeSha256;
       Sha256 (DataDigest, Data, DataSize);
       break;
     }
@@ -87,6 +129,10 @@ SigVerifyShaHashBySize (
     {
       return -1;
     }
+  }
+
+  if (!InternalSigHashTypeIsAllowed (Hashtype)) {
+    return -1;
   }
 
   return CompareMem (DataDigest, Hash, HashSize);
@@ -157,6 +203,10 @@ RsaVerifySigHashFromProcessed (
     return FALSE;
   }
 
+  if (!InternalSigHashTypeIsAllowed (Algorithm)) {
+    return FALSE;
+  }
+
   switch (Algorithm) {
     case OcSigHashTypeSha256:
     {
@@ -195,6 +245,10 @@ RsaVerifySigHashFromProcessed (
   // This implicitly verifies it's a multiple of the Word size.
   //
   ModulusSize = NumWords * OC_BN_WORD_SIZE;
+  if (!InternalRsaModulusSizeIsAllowed (ModulusSize)) {
+    return FALSE;
+  }
+
   if (SignatureSize != ModulusSize) {
     DEBUG ((DEBUG_INFO, "OCCR: Signature length does not match key length"));
     return FALSE;

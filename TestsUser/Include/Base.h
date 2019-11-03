@@ -1884,4 +1884,7 @@ GetCurrentMemoryMap (
   return NULL;
 }
 
+#define _PCD_GET_MODE_16_PcdOcCryptoAllowedSigHashTypes 1U | 2U | 4U // SHA256, SHA384, SHA512
+#define _PCD_GET_MODE_16_PcdOcCryptoAllowedRsaModuli    4096U | 2048U
+
 #endif
