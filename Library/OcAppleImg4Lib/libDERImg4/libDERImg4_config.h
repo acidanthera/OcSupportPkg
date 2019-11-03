@@ -20,20 +20,20 @@ extern "C" {
 
 #define DER_IMG4_MAX_DIGEST_SIZE  64
 
-  extern const uint8_t *DERImg4RootCertificate;
-  extern const size_t  *DERImg4RootCertificateSize;
+extern const uint8_t *DERImg4RootCertificate;
+extern const size_t  *DERImg4RootCertificateSize;
 
-  bool
-  DERImg4VerifySignature (
-    DERByte        *Modulus,
-    DERSize        ModulusSize,
-    uint32_t       Exponent,
-    const uint8_t  *Signature,
-    size_t         SignatureSize,
-    uint8_t        *Data,
-    size_t         DataSize,
-    const DERItem  *AlgoOid
-    );
+bool
+DERImg4VerifySignature (
+  DERByte        *Modulus,
+  DERSize        ModulusSize,
+  uint32_t       Exponent,
+  const uint8_t  *Signature,
+  size_t         SignatureSize,
+  uint8_t        *Data,
+  size_t         DataSize,
+  const DERItem  *AlgoOid
+  );
 
 /* ---------------------- Do not edit below this line ---------------------- */
 
